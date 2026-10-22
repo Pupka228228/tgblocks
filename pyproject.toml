@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tgblocks"
+version = "0.2.8"
+description = "Visual editor for building Telegram bots on aiogram 3"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "tgblocks contributors" }]
+keywords = ["telegram", "bot", "dsl", "blockly", "aiogram", "low-code", "codegen"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Framework :: AsyncIO",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = []
+
+[project.optional-dependencies]
+# aiogram is only needed to actually poll Telegram, not to compile a bot.
+runtime = ["aiogram>=3.4,<4", "aiohttp-socks>=0.8"]
+dev = ["pytest>=7", "build>=1"]
+
+[project.scripts]
+tgblocks = "tgblocks.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Pupka228228/tgblocks"
+Repository = "https://github.com/Pupka228228/tgblocks"
+Issues = "https://github.com/Pupka228228/tgblocks/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tgblocks"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "examples", "tests", "README.md", "LICENSE", "pyproject.toml",
+           "CHANGELOG.md", "ИНСТРУКЦИЯ.md"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

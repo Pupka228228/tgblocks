@@ -1,0 +1,16 @@
+token("1:x")
+
+on.command("/start"):
+    send("Привет")
+    typing()
+    delay(1)
+    send_photo("https://example.com/cat.jpg", "кот")
+
+on.video_note():
+    delete()
+
+on.new_members():
+    send("Добро пожаловать")
+
+on.edited():
+    send("Ты изменил сообщение")

@@ -1,0 +1,35 @@
+# A tiny Telegram bot written in the tgblocks DSL.
+# Replace the token (or export TG_BOT_TOKEN) and run:
+#     tgblocks run examples/hello.tg
+
+bot token "PASTE_YOUR_TOKEN"
+bot name "tgblocks hello"
+
+on /start:
+    send "Привет! Я бот на tgblocks."
+    buttons:
+        "Помощь" -> /help
+        "О боте" -> /about
+
+on /help:
+    send "Команды: /start, /help, /about"
+    buttons reply:
+        "/start"
+
+on /about:
+    send "Собрано из DSL и блоков. Код — обычный aiogram 3."
+
+on message:
+    when text contains "привет":
+        send "И тебе привет!"
+    else:
+        send "Не понял. Напиши /help."
+
+on photo:
+    send "Хорошее фото! А теперь напиши /help."
+
+on sticker:
+    send "Стикер принят."
+
+on any:
+    send "Я понимаю только текст и фото."

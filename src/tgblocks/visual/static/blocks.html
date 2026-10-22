@@ -1,0 +1,634 @@
+
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="title_blocks">tgblocks - blocks</title>
+<style>
+  :root { --chip:#1b2033; --chip-hover:#242b48; --field:#11151f; --scroll:#3a4166; --log:#0b0e16; --log-fg:#9aa2c6; --flyout:#1d2136; --tok-key:#c98bff; --tok-fn:#7ee0a8; --tok-str:#f0a35e; --tok-num:#5b8cff; --tok-com:#5d6488; --tok-pun:#8d93b4; --bg:#0f1220; --panel:#171a2b; --line:#282d47; --fg:#e8eaf4; --muted:#8d93b4;
+          --accent:#5b8cff; --ok:#7ee0a8; --err:#ff8f8f; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; display:flex; flex-direction:column; background:var(--bg); color:var(--fg);
+         font:14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { display:flex; align-items:center; gap:10px; padding:10px 14px;
+           background:var(--panel); border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:14px; font-weight:600; letter-spacing:.4px; }
+  h1 span { color:var(--muted); font-weight:400; }
+  .spacer { flex:1; }
+  button { font:inherit; color:var(--fg); background:var(--chip-hover); border:1px solid var(--line);
+           border-radius:6px; padding:7px 12px; cursor:pointer; }
+  button:hover { background:#2c3260; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  a.nav { color:var(--muted); text-decoration:none; padding:7px 10px; border:1px solid var(--line);
+          border-radius:6px; }
+  main { flex:1; display:flex; min-height:0; }
+  #blockly { flex:1 1 60%; min-width:300px; height:100%; }
+  aside { flex:1 1 40%; min-width:280px; display:flex; flex-direction:column;
+          border-left:1px solid var(--line); }
+  .tabs { display:flex; gap:6px; padding:8px 12px; background:var(--panel);
+          border-bottom:1px solid var(--line); }
+  .tab { padding:5px 12px; border-radius:6px; color:var(--muted); cursor:pointer; }
+  .tab.active { color:var(--fg); background:var(--chip-hover); }
+  pre { flex:1; margin:0; padding:14px; overflow:auto; white-space:pre; tab-size:4;
+        font:12.5px/1.55 "Cascadia Code", Consolas, "Courier New", monospace; }
+  #status { min-height:38px; padding:9px 12px; border-top:1px solid var(--line);
+            color:var(--muted); white-space:pre-wrap; font-size:12.5px; }
+  #status.ok { color:var(--ok); } #status.error { color:var(--err); }
+  #pane-log { color:var(--log-fg); }
+  .hidden { display:none !important; }
+  .file-name { color:var(--muted); font-size:12px; padding:0 4px; }
+  /* no hairline frames around the workspace and toolbox */
+  .blocklyMainBackground { stroke: none !important; }
+  .blocklyToolboxDiv, .blocklyFlyout, .blocklyFlyoutBackground { border: 0 !important; }
+  .blocklyFlyoutBackground { fill: var(--flyout) !important; }
+  .blocklyTreeRow { border: 0 !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>tgblocks <span data-i18n="page_blocks">blocks</span></h1>
+  <span class="spacer"></span>
+  <button id="btn-open" data-i18n="open" title="открыть файл бота">Открыть файл…</button>
+  <span id="file-name" class="file-name">bot1</span>
+  <button id="btn-download-py" data-i18n="download">Download .py</button>
+  <button id="btn-compile" class="primary" data-i18n="compile">Compile</button>
+  <button id="btn-run" data-i18n="run">▶ Запустить</button>
+  <button id="btn-stop" data-i18n="stop">■ Стоп</button>
+  <a class="nav" href="/nodes" data-i18n="view_nodes">Вид: узлы</a>
+  <a class="nav" href="/text" data-i18n="view_text">Вид: текст</a>
+</header>
+<main>
+  <input id="import" type="file" accept=".py,.txt,.tg" class="hidden" />
+  <div id="blockly"></div>
+  <aside>
+    <div class="tabs">
+      <div class="tab active" data-pane="text" data-i18n="tab_text">Текст</div>
+      <div class="tab" data-pane="code" data-i18n="tab_python">Python (aiogram 3)</div>
+      <div class="tab" data-pane="logs" data-i18n="tab_logs">Логи</div>
+    </div>
+    <pre id="pane-text"></pre>
+    <pre id="pane-code" class="hidden"></pre>
+    <pre id="pane-log" class="hidden"></pre>
+    <div id="status">Loading Blockly...</div>
+  </aside>
+</main>
+<script src="/tgblocks-project.js"></script>
+<script src="/tgblocks-ui.js"></script>
+<!-- Blockly ships with the package: the block editor works without internet. -->
+<script src="/vendor/blockly.js"></script>
+<script>
+  // A missing local copy falls back to the CDN; if both fail the page says so
+  // instead of hanging on "Loading Blockly…".
+  if (!window.Blockly) {
+    document.write('<script src="https://unpkg.com/blockly@10.4.3/blockly_compressed.js">'
+                   + "\u003c/script>");
+  }
+</script>
+<script>
+(function () {
+  "use strict";
+
+  // One-line translator for the few words that live in this page, not in the
+  // catalogue: L("по-русски", "in english").
+  function L(ru, en) {
+    return (window.TgUi && TgUi.lang() === "en" && en) ? en : ru;
+  }
+
+  var dslPane = document.getElementById("pane-text");
+  var codePane = document.getElementById("pane-code");
+  var statusEl = document.getElementById("status");
+  var fileNameEl = document.getElementById("file-name");
+  var importInput = document.getElementById("import");
+  var workspace = null;
+  var THEMES = {};
+  var lastDsl = "", lastCode = "", lastHasToken = false;
+  var loading = false;      // true while the board is being rebuilt from text
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = kind || "";
+  }
+
+  function literal(value) {
+    return JSON.stringify(String(value == null ? "" : value));
+  }
+
+  function workspaceXml() {
+    // The workspace goes to the server as XML: the same Python converter that
+    // draws this canvas from text turns it back, so there is no second DSL
+    // writer here to drift away from the real one.
+    return Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace));
+  }
+
+  async function compileWorkspace() {
+    // An empty canvas is "delete everything": tell the shared document, so the
+    // other two views do not keep showing the bot that no longer exists here.
+    if (workspace && workspace.getTopBlocks(false).length === 0) {
+      lastDsl = "";
+      lastCode = "";
+      dslPane.textContent = "";
+      codePane.textContent = "";
+      if (!loading) { TgProject.saveText(""); }
+      setStatus(L("Пусто. Перетащи блок «токен» из палитры.", "Empty. Drag the token block from the palette."), "ok");
+      return;
+    }
+    var xml;
+    try {
+      xml = workspaceXml();
+    } catch (error) {
+      setStatus(String(error && error.message ? error.message : error), "error");
+      return;
+    }
+    try {
+      var response = await fetch("/api/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ xml: xml })
+      });
+      var data = await response.json();
+      if (!data.ok) {
+        // An unfinished canvas: the last good text stays in the project.
+        setStatus(data.detail || data.error || "Compilation failed.", "error");
+        return;
+      }
+      lastDsl = data.text || "";
+      lastCode = data.code || "";
+      lastHasToken = !!data.has_token;
+      dslPane.textContent = lastDsl;
+      codePane.textContent = lastCode;
+      if (!loading) { TgProject.saveText(lastDsl); }
+      var warnings = data.warnings || [];
+      var line = TgUi.fmt("status_ok_lines", { lines: lastCode.split("\n").length });
+      if (warnings.length) { line += " · " + warnings.join("; "); }
+      setStatus(line, "ok");
+    } catch (error) {
+      setStatus("Cannot reach the tgblocks server: " + error, "error");
+    }
+  }
+
+  var compileTimer = null;
+  function scheduleCompile() {
+    clearTimeout(compileTimer);
+    compileTimer = setTimeout(compileWorkspace, 400);
+  }
+
+  function download(name, text, mime) {
+    var blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // Rebuild the canvas from the shared text (used on load and on every change
+  // that arrives from another view).
+  async function renderText(text) {
+    dslPane.textContent = text;
+    if (!text.trim()) {
+      loading = true;
+      workspace.clear();
+      loading = false;
+      setStatus(L("Пустой бот: перетащи блок «bot token» из палитры.", "Empty bot: drag the bot token block from the palette."));
+      return;
+    }
+    var response = await fetch("/api/to_blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: text })
+    });
+    var data = await response.json();
+    if (!data.ok) {
+      setStatus(data.detail || data.error || L("не удалось показать текст блоками", "cannot show the text as blocks"), "error");
+      return;
+    }
+    var xml = Blockly.utils.xml.textToDom(data.xml);
+    loading = true;
+    workspace.clear();
+    Blockly.Xml.domToWorkspace(xml, workspace);
+    loading = false;
+    compileWorkspace();
+    setStatus(L("Файл: ", "File: ") + TgProject.currentName() + L(" · собран из общего текста", " · built from the shared text"), "ok");
+  }
+
+  async function loadProject(name) {
+    try {
+      var data = await TgProject.load(name);
+      fileNameEl.textContent = data.name;
+      await renderText(data.text);
+    } catch (error) {
+      setStatus(L("Не удалось открыть бота: ", "Could not open the bot: ") + error.message, "error");
+    }
+  }
+
+  // ---------------------------------------------------------------- catalogue
+  var SCHEMA = null;
+  var ACTIONMAP = {};
+  var EVENTMAP = {};
+
+  var GROUP_COLOUR = {
+    message: "#1f7a4d", media: "#1f7a4d", keyboard: "#7ee0a8", logic: "#c98bff",
+    state: "#d05c9b", moderation: "#c0392b", service: "#4a5a7a", event: "#f0a35e"
+  };
+
+  async function loadSchema() {
+    try {
+      var response = await fetch("/api/schema?lang=" +
+                                 (window.TgUi ? TgUi.lang() : "ru"));
+      var data = await response.json();
+      if (!data || !data.actions) { return; }
+      SCHEMA = data;
+      data.actions.forEach(function (item) { ACTIONMAP[item.kind] = item; });
+      data.events.forEach(function (item) { EVENTMAP[item.kind] = item; });
+    } catch (error) {
+      setStatus(L("Не удалось получить схему блоков: ", "Could not load the block catalogue: ") + error, "error");
+    }
+  }
+
+  function blockTypeOf(kind) {
+    return "tg_" + (kind === "send_photo" ? "photo" : kind);
+  }
+
+  // Action blocks come ready-made from /api/schema: Blockly numbers placeholders
+  // per message (message1 starts again at %1), and that rule lives in Python
+  // where a test can check it. The page only re-colours them.
+
+  // The structural blocks are written by hand: they carry statement slots.
+  var STRUCTURAL = ["send", "when", "otherwise", "buttons", "button"];
+
+  function defineBlocksFromSchema() {
+    var definitions = [];
+
+    definitions.push({
+      type: "tg_bot",
+      message0: L("токен %1", "token %1"),
+      args0: [{ type: "field_input", name: "TOKEN", text: "123456:REPLACE_WITH_YOUR_TOKEN" }],
+      message1: L("имя %1", "name %1"),
+      args1: [{ type: "field_input", name: "NAME", text: "" }],
+      message2: L("прокси %1", "proxy %1"),
+      args2: [{ type: "field_input", name: "PROXY", text: "" }],
+      message3: "webhook %1",
+      args3: [{ type: "field_input", name: "WEBHOOK", text: "" }],
+      message4: "%1",
+      args4: [{ type: "input_statement", name: "DO" }],
+      colour: "#2f4fa8",
+      tooltip: L("Токен от @BotFather и события внутри.", "The @BotFather token, with events inside.")
+    });
+
+    var kindOptions = (SCHEMA ? SCHEMA.events : []).map(function (item) {
+      return [window.TgUi ? TgUi.tr(item) : item.label, item.kind];
+    });
+
+    definitions.push({
+      type: "tg_on",
+      message0: L("событие %1", "event %1"),
+      args0: [{ type: "field_dropdown", name: "KIND",
+                options: kindOptions.length ? kindOptions : [["команда", "command"]] }],
+      message1: L("команда %1", "command %1"),
+      args1: [{ type: "field_input", name: "COMMAND", text: "/start" }],
+      message2: L("тексты %1", "texts %1"),
+      args2: [{ type: "field_input", name: "PATTERNS", text: "" }],
+      message3: L("данные кнопки %1", "button data %1"),
+      args3: [{ type: "field_input", name: "DATA", text: "" }],
+      message4: L("шаг %1", "step %1"),
+      args4: [{ type: "field_input", name: "STATE", text: "" }],
+      message5: L("чат %1", "chat %1"),
+      args5: [{ type: "field_dropdown", name: "CHAT",
+                options: [[L("любой", "any"), ""], [L("личка", "private"), "private"], [L("группа", "group"), "group"],
+                          [L("супергруппа", "supergroup"), "supergroup"], [L("канал", "channel"), "channel"]] }],
+      message6: L("ID автора %1", "author ID %1"),
+      args6: [{ type: "field_input", name: "FROM_USER", text: "" }],
+      message7: L("регулярка %1", "regex %1"),
+      args7: [{ type: "field_input", name: "REGEX", text: "" }],
+      message8: "%1",
+      args8: [{ type: "input_statement", name: "DO" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#c26a1f",
+      tooltip: L("Реакция на команду, сообщение, кнопку или шаг диалога.", "React to a command, a message, a button press or a dialogue step.")
+    });
+
+    definitions.push({
+      type: "tg_send",
+      message0: L("сообщение %1", "message %1"),
+      args0: [{ type: "field_input", name: "TEXT", text: "Привет!" }],
+      message1: L("кнопки %1", "buttons %1"),
+      args1: [{ type: "input_statement", name: "DO" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#1f7a4d",
+      tooltip: L("Отправить текст; клавиатура вкладывается внутрь.", "Send text; a keyboard nests inside.")
+    });
+
+    definitions.push({
+      type: "tg_buttons",
+      message0: L("клавиатура %1", "keyboard %1"),
+      args0: [{ type: "field_dropdown", name: "STYLE",
+                options: [["inline", "inline"], ["reply", "reply"]] }],
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "DO" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#7ee0a8",
+      tooltip: L("Набор кнопок под сообщением.", "A set of buttons under the message.")
+    });
+
+    definitions.push({
+      type: "tg_button",
+      message0: L("кнопка %1 -> %2", "button %1 -> %2"),
+      args0: [
+        { type: "field_input", name: "LABEL", text: "Кнопка" },
+        { type: "field_input", name: "TARGET", text: "/help" }
+      ],
+      message1: L("вид %1", "kind %1"),
+      args1: [{ type: "field_dropdown", name: "KIND",
+                options: [[L("команда", "command"), "command"], [L("ссылка", "link"), "url"],
+                          ["web app", "web_app"], [L("телефон", "phone"), "contact"],
+                          [L("геолокация", "location"), "location"]] }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#7ee0a8",
+      tooltip: L("Кнопка: команда, ссылка или запрос телефона/геолокации.", "A button: a command, a link, or a phone/location request.")
+    });
+
+    definitions.push({
+      type: "tg_when",
+      message0: L("если %1 %2 %3", "if %1 %2 %3"),
+      args0: [
+        { type: "field_dropdown", name: "SOURCE",
+          options: [[L("текст", "text"), "text"], [L("эмодзи", "emoji"), "dice"]] },
+        { type: "field_dropdown", name: "OP",
+          options: [[L("содержит", "contains"), "contains"], [L("равно", "equals"), "=="],
+                    [L("не равно", "not equal"), "!="], [L("начинается с", "starts with"), "startswith"],
+                    [L("кончается на", "ends with"), "endswith"]] },
+        { type: "field_input", name: "VALUE", text: "привет" }
+      ],
+      message1: L("ещё значения %1", "more values %1"),
+      args1: [{ type: "field_input", name: "VALUES", text: "" }],
+      message2: L("то %1", "then %1"),
+      args2: [{ type: "input_statement", name: "DO" }],
+      message3: L("иначе %1", "else %1"),
+      args3: [{ type: "input_statement", name: "ELSE" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#c98bff",
+      tooltip: L("Проверка текста сообщения.", "A check on the message text or the emoji value.")
+    });
+
+    definitions.push({
+      type: "tg_otherwise",
+      message0: L("иначе", "else"),
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "DO" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: "#c98bff",
+      tooltip: L("Ветка «иначе» для условия рядом.", "The else branch of the condition nearby.")
+    });
+
+    (SCHEMA && SCHEMA.blocks ? SCHEMA.blocks : []).forEach(function (block) {
+      definitions.push(block);
+    });
+
+    Blockly.defineBlocksWithJsonArray(definitions);
+  }
+
+  function buildToolbox() {
+    var contents = [
+      { kind: "category", name: L("Бот", "Bot"), colour: "#5b8cff",
+        contents: [{ kind: "block", type: "tg_bot" }] },
+      { kind: "category", name: L("События", "Events"), colour: "#f0a35e",
+        contents: [{ kind: "block", type: "tg_on" }] }
+    ];
+    var order = [["message", "Сообщения"], ["media", "Медиа"],
+                 ["keyboard", "Клавиатура"], ["logic", "Логика"],
+                 ["state", "Диалоги"], ["moderation", "Модерация"],
+                 ["service", "Сервис"]];
+    var actions = SCHEMA ? SCHEMA.actions : [];
+    var groupName = {};
+    if (SCHEMA) {
+      SCHEMA.groups.forEach(function (group) {
+        groupName[group.kind] = window.TgUi ? TgUi.tr(group) : group.label;
+      });
+    }
+    order.forEach(function (pair) {
+      var blocks = actions.filter(function (item) { return item.group === pair[0]; })
+        .map(function (item) { return { kind: "block", type: blockTypeOf(item.kind) }; });
+      if (pair[0] === "keyboard") {
+        blocks.push({ kind: "block", type: "tg_buttons" });
+        blocks.push({ kind: "block", type: "tg_button" });
+      }
+      if (!blocks.length) { return; }
+      contents.push({ kind: "category", name: groupName[pair[0]] || pair[1],
+                      colour: GROUP_COLOUR[pair[0]] || "#7ee0a8", contents: blocks });
+    });
+    return { kind: "categoryToolbox", contents: contents };
+  }
+
+  async function boot() {
+    if (typeof Blockly === "undefined") {
+      setStatus("Blockly could not be loaded from the CDN. Check your internet connection, " +
+                "or use the node editor at /nodes.", "error");
+      return;
+    }
+    await loadSchema();
+
+    defineBlocksFromSchema();
+
+    var darkTheme = Blockly.Theme.defineTheme("tgblocks-dark", {
+      base: Blockly.Themes.Classic,
+      componentStyles: {
+        workspaceBackgroundColour: "#0f1220",
+        toolboxBackgroundColour: "#171a2b",
+        toolboxForegroundColour: "#e8eaf4",
+        flyoutBackgroundColour: "var(--flyout)",
+        flyoutForegroundColour: "#c9cee6",
+        flyoutOpacity: 0.95,
+        scrollbarColour: "var(--scroll)",
+        insertionMarkerColour: "#5b8cff",
+        insertionMarkerOpacity: 0.4,
+        cursorColour: "#5b8cff"
+      }
+    });
+
+    // The same canvas for the light interface theme.
+    var lightTheme = Blockly.Theme.defineTheme("tgblocks-light", {
+      base: Blockly.Themes.Classic,
+      componentStyles: {
+        workspaceBackgroundColour: "#f4f6fb",
+        toolboxBackgroundColour: "#ffffff",
+        toolboxForegroundColour: "#1a1e2b",
+        flyoutBackgroundColour: "#eef1f8",
+        flyoutForegroundColour: "#1a1e2b",
+        flyoutOpacity: 0.98,
+        scrollbarColour: "#c3cada",
+        insertionMarkerColour: "#3b6cf0",
+        insertionMarkerOpacity: 0.4,
+        cursorColour: "#3b6cf0"
+      }
+    });
+
+    THEMES = { dark: darkTheme, light: lightTheme };
+    var activeTheme = (window.TgUi && TgUi.theme() === "light") ? lightTheme : darkTheme;
+
+    var toolbox = buildToolbox();
+
+    workspace = Blockly.inject("blockly", {
+      toolbox: toolbox,
+      theme: activeTheme,
+      grid: { spacing: 26, length: 3, colour: "#222741", snap: true },
+      zoom: { controls: true, wheel: true, startScale: 0.85, maxScale: 2, minScale: 0.4 },
+      trashcan: true,
+      move: { scrollbars: true, drag: true, wheel: true }
+    });
+
+    workspace.addChangeListener(function (event) {
+      if (event.isUiEvent || loading) { return; }
+      scheduleCompile();
+    });
+
+    TgProject.configure({
+      status: setStatus,
+      reload: async function (fresh) {
+        fileNameEl.textContent = TgProject.currentName();
+        await renderText(fresh.text);
+      }
+    });
+
+    document.getElementById("btn-open").addEventListener("click", function () {
+      importInput.value = "";
+      importInput.click();
+    });
+
+    importInput.addEventListener("change", function () {
+      var file = importInput.files[0];
+      if (!file) { return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        var name = file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]/g, "") || "bot1";
+        var text = String(reader.result || "").replace(/^\uFEFF/, "");
+        var converted = fetch("/api/to_blocks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: text })
+        });
+        converted.then(function (response) {
+          return response.json();
+        }).then(function (data) {
+          if (!data.ok) {
+            setStatus(L("Это не текст бота: ", "That is not bot text: ") + (data.detail || data.error), "error");
+            return;
+          }
+          TgProject.setName(name);
+          fileNameEl.textContent = name;
+          TgProject.saveText(text);
+          TgProject.flush();
+          var xml = Blockly.utils.xml.textToDom(data.xml);
+          loading = true;
+          workspace.clear();
+          Blockly.Xml.domToWorkspace(xml, workspace);
+          loading = false;
+          dslPane.textContent = text;
+          compileWorkspace();
+          setStatus(L("Открыт файл: ", "Opened file: ") + file.name, "ok");
+        });
+      };
+      reader.readAsText(file);
+      importInput.value = "";
+    });
+
+    loadProject(TgProject.currentName());
+
+    document.getElementById("btn-compile").addEventListener("click", compileWorkspace);
+
+    var logPane = document.getElementById("pane-log");
+    var logSince = 0;
+    var logTimer = null;
+
+    async function pollLogs() {
+      try {
+        var response = await fetch("/api/logs?since=" + logSince);
+        var data = await response.json();
+        if (data.lines.length) {
+          logPane.textContent += data.lines.join("\n") + "\n";
+          logPane.scrollTop = logPane.scrollHeight;
+        }
+        logSince = data.total;
+        document.getElementById("btn-stop").disabled = !data.running;
+      } catch (error) {
+        /* server is gone */
+      }
+    }
+
+    async function runBot() {
+      if (!lastCode) { setStatus("Compile first.", "error"); return; }
+      // Ask only when the bot block has no token; otherwise just start it.
+      var token = "";
+      if (!lastHasToken) {
+        var entered = window.prompt(
+          "У бота нет токена. Впиши его (Enter - взять из TG_BOT_TOKEN):", "");
+        if (entered === null) { return; }
+        token = entered;
+      }
+      var response = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: lastCode, token: token })
+      });
+      var data = await response.json();
+      if (!data.ok) { setStatus(data.error || L("не запустилось", "did not start"), "error"); return; }
+      logSince = 0;
+      logPane.textContent = "";
+      document.querySelector('[data-pane="logs"]').click();
+      setStatus(L("Запущен (pid ", "Running (pid ") + data.pid + ").", "ok");
+      if (!logTimer) { logTimer = setInterval(pollLogs, 1000); }
+      pollLogs();
+    }
+
+    document.getElementById("btn-run").addEventListener("click", runBot);
+    document.getElementById("btn-stop").addEventListener("click", async function () {
+      await fetch("/api/stop", { method: "POST" });
+      setStatus(L("Остановлен.", "Stopped."), "ok");
+      pollLogs();
+    });
+    document.getElementById("btn-stop").disabled = true;
+    document.getElementById("btn-download-py").addEventListener("click", function () {
+      download("bot.py", lastCode, "text/x-python;charset=utf-8");
+    });
+    document.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        document.querySelectorAll(".tab").forEach(function (other) {
+          other.classList.toggle("active", other === tab);
+        });
+        var pane = tab.dataset.pane;
+        dslPane.classList.toggle("hidden", pane !== "text");
+        codePane.classList.toggle("hidden", pane !== "code");
+        document.getElementById("pane-log").classList.toggle("hidden", pane !== "logs");
+      });
+    });
+    document.addEventListener("keydown", function (event) {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { compileWorkspace(); }
+    });
+
+    setStatus(L("Перетащи блок «bot token» из палитры - файл подхватится из общего проекта.", "Drag the bot token block from the palette - the file comes from the shared project."));
+  }
+
+  boot();
+
+  // Blockly needs its own theme switch, and its block captions are baked into the
+  // definitions, so a language change reloads the page. Only a real click in the
+  // settings panel does that: reloading on boot (when the language comes from the
+  // browser or from ?lang=) would loop forever.
+  window.TgUiOnChange = function (state) {
+    if (workspace && THEMES[state.theme]) { workspace.setTheme(THEMES[state.theme]); }
+  };
+  window.TgUiOnLanguage = function () { window.location.reload(); };
+})();
+</script>
+</body>
+</html>

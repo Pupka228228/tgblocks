@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ru" translate="no">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="title_text">tgblocks - текст</title>
+<style>
+  :root { --chip:#1b2033; --chip-hover:#242b48; --field:#11151f; --scroll:#3a4166; --log:#0b0e16; --log-fg:#9aa2c6; --flyout:#1d2136; --tok-key:#c98bff; --tok-fn:#7ee0a8; --tok-str:#f0a35e; --tok-num:#5b8cff; --tok-com:#5d6488; --tok-pun:#8d93b4; --bg:#0e111c; --panel:#161a28; --line:#272c42; --fg:#e8eaf4; --muted:#8d93b4;
+          --accent:#5b8cff; --ok:#7ee0a8; --err:#ff8f8f; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; display:flex; flex-direction:column; background:var(--bg); color:var(--fg);
+         font:13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; overflow:hidden; }
+  header { display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--panel);
+           border-bottom:1px solid var(--line); }
+  h1 { margin:0 10px 0 0; font-size:13px; font-weight:600; letter-spacing:.3px; }
+  h1 span { color:var(--muted); font-weight:400; }
+  .spacer { flex:1; }
+  button { font:inherit; color:var(--fg); background:var(--chip-hover); border:1px solid var(--line);
+           border-radius:6px; padding:5px 9px; cursor:pointer; white-space:nowrap; }
+  button:hover { background:#2c3260; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  a.nav { color:var(--muted); text-decoration:none; padding:5px 8px; border:1px solid var(--line);
+          border-radius:6px; }
+  main { flex:1; display:flex; min-height:0; }
+  #editor { position:relative; flex:1 1 55%; min-width:280px; border-right:1px solid var(--line);
+            overflow:hidden; }
+  #highlight, #source {
+      position:absolute; inset:0; margin:0; padding:14px 16px; border:0; overflow:auto;
+      font:13px/1.6 "Cascadia Code", Consolas, "Courier New", monospace;
+      white-space:pre-wrap; word-break:break-word; tab-size:4; }
+  #highlight { pointer-events:none; color:var(--fg); }
+  #source { background:transparent; color:transparent; caret-color:var(--fg);
+            resize:none; outline:none; }
+  #source::selection { background:rgba(91,140,255,.30); }
+  #status { min-height:34px; padding:8px 12px; border-top:1px solid var(--line);
+            color:var(--muted); white-space:pre-wrap; font-size:12px; }
+  #status.ok { color:var(--ok); } #status.error { color:var(--err); }
+  aside { flex:1 1 45%; min-width:280px; display:flex; flex-direction:column; min-height:0; }
+  .tabs { display:flex; gap:6px; padding:7px 10px; background:var(--panel);
+          border-bottom:1px solid var(--line); }
+  .tabs b { color:var(--muted); font-weight:400; font-size:12px; padding:4px 0 4px 4px; }
+  pre { flex:1; margin:0; padding:12px; overflow:auto; white-space:pre; tab-size:4;
+        font:12px/1.55 "Cascadia Code", Consolas, "Courier New", monospace;
+        scrollbar-width:thin; scrollbar-color:var(--scroll) transparent; }
+  .tok-key { color:var(--tok-key); } .tok-fn { color:var(--tok-fn); } .tok-str { color:var(--tok-str); }
+  .tok-num { color:var(--tok-num); } .tok-com { color:var(--tok-com); font-style:italic; }
+  .tok-pun { color:var(--tok-pun); }
+  .file-name { color:var(--muted); font-size:12px; padding:0 4px; }
+  .hidden { display:none !important; }
+  #pane-log { flex:0 0 32%; border-top:1px solid var(--line); background:var(--log);
+              color:var(--log-fg); }
+  /* ready-made calls from the catalogue: they insert text, they do not wrap it */
+  #snippets { position:fixed; z-index:20; top:52px; right:16px; width:340px;
+              max-height:70vh; overflow:auto; padding:10px; border:1px solid var(--line);
+              border-radius:10px; background:var(--panel);
+              box-shadow:0 18px 40px rgba(0,0,0,.45); }
+  #snippets .group { margin:0 0 10px; }
+  #snippets .group b { display:block; margin:0 0 5px; color:var(--muted);
+                       font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  #snippets button { display:block; width:100%; margin:0 0 3px; padding:5px 8px;
+                     border:1px solid var(--line); border-radius:6px;
+                     background:transparent; color:var(--fg); font-size:12px;
+                     text-align:left; cursor:pointer; }
+  #snippets button:hover { background:var(--chip-hover); }
+</style>
+</head>
+<body>
+<header>
+  <h1>tgblocks <span data-i18n="page_text">текст</span></h1>
+  <button id="btn-open" data-i18n="open" title="открыть файл с диска">Открыть файл…</button>
+  <span id="file-name" class="file-name">bot1</span>
+  <button id="btn-clear" data-i18n="clear" title="очистить текст">Очистить</button>
+  <button id="btn-compile" class="primary" data-i18n="compile">Собрать</button>
+  <button id="btn-snippets" data-i18n="snippets" title="вставить готовый вызов">Вставить…</button>
+  <button id="btn-run" data-i18n="run">▶ Запустить</button>
+  <button id="btn-stop" data-i18n="stop">■ Стоп</button>
+  <button id="btn-download" data-i18n="download">Скачать .py</button>
+  <button id="btn-copy" data-i18n="copy">Копировать</button>
+  <span class="spacer"></span>
+  <a class="nav" href="/nodes" data-i18n="view_nodes">Вид: узлы</a>
+  <a class="nav" href="/blocks" data-i18n="view_blocks">Вид: блоки</a>
+</header>
+<main>
+  <input id="import" type="file" accept=".py,.txt,.tg" class="hidden" />
+  <div id="snippets" class="hidden" aria-label="готовые блоки"></div>
+  <div id="editor">
+    <pre id="highlight"></pre>
+    <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+  </div>
+  <aside>
+    <div class="tabs"><b data-i18n="tab_python">Python (aiogram 3)</b><span class="spacer"></span><b data-i18n="tab_logs">Логи</b></div>
+    <pre id="pane-code"></pre>
+    <pre id="pane-log" class="log"></pre>
+    <div id="status">Пиши слева, Ctrl+Enter - собрать.</div>
+  </aside>
+</main>
+<script src="/tgblocks-project.js"></script>
+<script src="/tgblocks-ui.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // One-line translator for the few words that live in this page, not in the
+  // catalogue: L("по-русски", "in english").
+  function L(ru, en) {
+    return (window.TgUi && TgUi.lang() === "en" && en) ? en : ru;
+  }
+
+  var source = document.getElementById("source");
+  var highlight = document.getElementById("highlight");
+  var pane = document.getElementById("pane-code");
+  var statusEl = document.getElementById("status");
+  var lastCode = "", lastHasToken = false;
+
+  var NAMES = {
+    token: 1, name: 1, on: 1, command: 1, message: 1, send: 1, button: 1, buttons: 1,
+    when: 1, otherwise: 1, url: 1, TEXT: 1, PHOTO: 1, IMAGE: 1, STICKER: 1, VOICE: 1,
+    VIDEO: 1, DOCUMENT: 1, ANIMATION: 1, ANY: 1
+  };
+  var OPS = { contains: 1, startswith: 1, endswith: 1 };
+
+  // Ready-made calls, built from the server-side catalogue: the palette here
+  // covers every action the compiler knows, including the ones added later.
+  var snippetsEl = document.getElementById("snippets");
+
+  function argumentText(param) {
+    if (param.kind === "values") { return '"значение"'; }
+    if (param.kind === "number") { return String(param.default || 0); }
+    if (param.kind === "state") { return "order"; }
+    if (param.kind === "bool") { return null; }
+    return JSON.stringify(String(param.default == null ? "" : param.default));
+  }
+
+  function callText(spec) {
+    var args = [];
+    (spec.params || []).forEach(function (param) {
+      var text = argumentText(param);
+      if (text === null) { return; }
+      if (!param.required && (param.default === "" || param.default == null)) { return; }
+      args.push(text);
+    });
+    return spec.kind + "(" + args.join(", ") + ")";
+  }
+
+  function eventText(event) {
+    if (event.kind === "command") { return 'on.command("/start"):\n    send("Привет")'; }
+    if (event.kind === "text") { return 'on.message(TEXT, "привет"):\n    send("Привет")'; }
+    if (event.kind === "callback") { return 'on.callback("/menu"):\n    send("Нажали кнопку")'; }
+    if (event.kind === "state") { return 'on.state("order"):\n    send("Шаг диалога")'; }
+    return "on." + event.kind + "():\n    send(\"Привет\")";
+  }
+
+  async function loadSchema() {
+    var response;
+    try {
+      response = await fetch("/api/schema?lang=" +
+                             (window.TgUi ? TgUi.lang() : "ru"));
+    } catch (error) {
+      return;
+    }
+    var schema = await response.json();
+    if (!schema || !schema.actions) { return; }
+    schema.actions.forEach(function (action) { NAMES[action.kind] = 1; });
+    schema.events.forEach(function (event) { NAMES[event.kind] = 1; });
+
+    snippetsEl.innerHTML = "";
+    var groups = [["events", window.TgUi ? TgUi.tr({ label: "События",
+                                                     label_en: "Events" }) : "События",
+                   schema.events.map(eventText)]];
+    schema.groups.forEach(function (group) {
+      var items = schema.actions.filter(function (action) {
+        return action.group === group.kind;
+      }).map(callText);
+      if (items.length) {
+        groups.push([group.kind, window.TgUi ? TgUi.tr(group) : group.label, items]);
+      }
+    });
+    groups.forEach(function (triple) {
+      var box = document.createElement("div");
+      box.className = "group";
+      var head = document.createElement("b");
+      head.textContent = triple[1];
+      box.appendChild(head);
+      triple[2].forEach(function (code) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.textContent = code.split("\n")[0];
+        button.title = code;
+        button.addEventListener("click", function () {
+          insertAtCursor(code + "\n");
+          snippetsEl.classList.add("hidden");
+        });
+        box.appendChild(button);
+      });
+      snippetsEl.appendChild(box);
+    });
+  }
+
+  function insertAtCursor(text) {
+    var start = source.selectionStart;
+    var before = source.value.slice(0, start);
+    var lineStart = before.lastIndexOf("\n") + 1;
+    var indent = (before.slice(lineStart).match(/^[ ]*/) || [""])[0];
+    var block = text.split("\n").map(function (line, index) {
+      return index === 0 ? line : indent + line;
+    }).join("\n");
+    source.value = before + block + source.value.slice(source.selectionEnd);
+    var caret = start + block.length;
+    source.selectionStart = source.selectionEnd = caret;
+    source.focus();
+    refresh();
+    schedule();
+  }
+
+  document.getElementById("btn-snippets").addEventListener("click", function () {
+    snippetsEl.classList.toggle("hidden");
+  });
+  document.addEventListener("click", function (event) {
+    if (!snippetsEl.classList.contains("hidden") &&
+        !snippetsEl.contains(event.target) &&
+        event.target.id !== "btn-snippets") {
+      snippetsEl.classList.add("hidden");
+    }
+  });
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function classify(word) {
+    if (NAMES[word]) { return "tok-fn"; }
+    if (OPS[word] || word === "==" || word === "!=") { return "tok-key"; }
+    return "";
+  }
+
+  function paint(text) {
+    var out = "";
+    var pattern = /(#[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|([A-Za-z_][\w.]*)|(\d+)|([()\[\]{},:=.]+)/g;
+    var index = 0;
+    var match;
+    while ((match = pattern.exec(text)) !== null) {
+      out += escapeHtml(text.slice(index, match.index));
+      var token = match[0];
+      if (match[1]) { out += '<span class="tok-com">' + escapeHtml(token) + "</span>"; }
+      else if (match[2]) { out += '<span class="tok-str">' + escapeHtml(token) + "</span>"; }
+      else if (match[3]) {
+        var cls = classify(token);
+        out += cls ? '<span class="' + cls + '">' + escapeHtml(token) + "</span>"
+                   : escapeHtml(token);
+      }
+      else if (match[4]) { out += '<span class="tok-num">' + escapeHtml(token) + "</span>"; }
+      else { out += '<span class="tok-pun">' + escapeHtml(token) + "</span>"; }
+      index = match.index + token.length;
+    }
+    out += escapeHtml(text.slice(index));
+    return out;
+  }
+
+  function refresh() {
+    highlight.innerHTML = paint(source.value) + "\n";
+    highlight.scrollTop = source.scrollTop;
+    highlight.scrollLeft = source.scrollLeft;
+  }
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = kind || "";
+  }
+
+  async function compile() {
+    var text = source.value;
+    if (!text.trim()) {
+      lastCode = "";
+      pane.textContent = "";
+      setStatus(L("Пусто. Напиши ", "Empty. Write ") + 'token("...")' + L(" и ", " and ") + 'on.command("/start"):' + L("", ""));
+      return;
+    }
+    try {
+      var response = await fetch("/api/compile_text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: text })
+      });
+      var data = await response.json();
+      if (!data.ok) {
+        lastCode = "";
+        pane.textContent = "";
+        setStatus(data.detail || data.error || L("Не собралось.", "Compilation failed."), "error");
+        return;
+      }
+      lastCode = data.code;
+      lastHasToken = !!data.has_token;
+      pane.textContent = data.code;
+      setStatus(TgUi.fmt("status_ok_lines",
+                         { lines: data.code.split("\n").length }), "ok");
+    } catch (error) {
+      setStatus(L("Нет связи с сервером tgblocks: ", "Cannot reach the tgblocks server: ") + error, "error");
+    }
+  }
+
+  var timer = null;
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(compile, 400);
+    scheduleSave();
+  }
+
+  source.addEventListener("input", function () {
+    refresh();
+    schedule();
+  });
+  source.addEventListener("scroll", refresh);
+  function nextIndent(line) {
+    // How many extra spaces the next line deserves after this one.
+    var trimmed = line.trim();
+    if (/(^|[\s(])on\.[\w.]+\(.*\):\s*$/.test(trimmed)) { return 4; }
+    if (/^(when|otherwise)\(.*\):\s*$/.test(trimmed)) { return 4; }
+    if (/^send\(.*\)\s*$/.test(trimmed)) { return 4; }
+    return 0;
+  }
+
+  function indentBlock(outdent) {
+    var value = source.value;
+    var from = value.lastIndexOf("\n", source.selectionStart - 1) + 1;
+    var to = value.indexOf("\n", source.selectionEnd);
+    if (to === -1) { to = value.length; }
+    var chunk = value.slice(from, to);
+    var lines = chunk.split("\n").map(function (line) {
+      if (outdent) { return line.replace(/^ {1,4}/, ""); }
+      return line.trim() ? "    " + line : line;
+    });
+    var replacement = lines.join("\n");
+    source.value = value.slice(0, from) + replacement + value.slice(to);
+    source.selectionStart = from;
+    source.selectionEnd = from + replacement.length;
+    refresh();
+    schedule();
+  }
+
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      var value = source.value;
+      var caret = source.selectionStart;
+      var lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+      var line = value.slice(lineStart, caret);
+      var indent = (line.match(/^ */) || [""])[0];
+      var extra = new Array(nextIndent(line) + 1).join(" ");
+      var insert = "\n" + indent + extra;
+      source.value = value.slice(0, caret) + insert + value.slice(source.selectionEnd);
+      var next = caret + insert.length;
+      source.selectionStart = source.selectionEnd = next;
+      refresh();
+      schedule();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      if (event.shiftKey || source.selectionStart !== source.selectionEnd) {
+        indentBlock(event.shiftKey);
+        return;
+      }
+      var caret = source.selectionStart;
+      source.value = source.value.slice(0, caret) + "    " + source.value.slice(caret);
+      source.selectionStart = source.selectionEnd = caret + 4;
+      refresh();
+      schedule();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      compile();
+    }
+  });
+  document.getElementById("btn-compile").addEventListener("click", compile);
+  document.getElementById("btn-copy").addEventListener("click", function () {
+    navigator.clipboard.writeText(lastCode || source.value).then(function () {
+      setStatus(L("Скопировано.", "Copied."), "ok");
+    }, function () {
+      setStatus(L("Браузер не дал доступ к буферу.", "The browser refused clipboard access."), "error");
+    });
+  });
+  document.getElementById("btn-download").addEventListener("click", function () {
+    var blob = new Blob([lastCode], { type: "text/x-python;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "bot.py";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  var fileName = document.getElementById("file-name");
+  var importInput = document.getElementById("import");
+
+  // The text is the shared document: every view reads and writes this one.
+  function showText(text) {
+    if (source.value === text) { return; }
+    var caret = source.selectionStart;
+    source.value = text;
+    source.selectionStart = source.selectionEnd = Math.min(caret, text.length);
+    refresh();
+    compile();
+  }
+
+  TgProject.configure({
+    status: setStatus,
+    reload: async function (fresh) {
+      showText(fresh.text);
+      fileName.textContent = TgProject.currentName();
+    }
+  });
+
+  function scheduleSave() {
+    // Saving is debounced inside TgProject, next to the revision bookkeeping.
+    TgProject.saveText(source.value);
+  }
+
+  async function loadFile(name) {
+    try {
+      var data = await TgProject.load(name);
+      fileName.textContent = data.name;
+      showText(data.text);
+      setStatus(L("Файл: ", "File: ") + data.name);
+    } catch (error) {
+      setStatus(L("Не удалось открыть файл: ", "Could not open the file: ") + error.message, "error");
+    }
+  }
+
+  importInput.addEventListener("change", function () {
+    var file = importInput.files[0];
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var name = file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]/g, "") || "bot1";
+      showText(String(reader.result || "").replace(/^\uFEFF/, ""));
+      TgProject.setName(name);
+      fileName.textContent = name;
+      TgProject.saveText(source.value);
+      TgProject.flush();
+      setStatus(L("Открыт файл: ", "Opened file: ") + file.name, "ok");
+    };
+    reader.readAsText(file);
+    importInput.value = "";
+  });
+
+  var logEl = document.getElementById("pane-log");
+  var logSince = 0;
+  var polling = null;
+
+  function appendLog(lines) {
+    if (!lines.length) { return; }
+    logEl.textContent += lines.join("\n") + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  async function pollLogs() {
+    try {
+      var response = await fetch("/api/logs?since=" + logSince);
+      var data = await response.json();
+      appendLog(data.lines);
+      logSince = data.total;
+      if (data.running) {
+        document.getElementById("btn-stop").disabled = false;
+      } else {
+        document.getElementById("btn-stop").disabled = true;
+      }
+    } catch (error) {
+      /* server gone: stop polling quietly */
+    }
+  }
+
+  function startPolling() {
+    if (polling) { return; }
+    polling = setInterval(pollLogs, 1000);
+  }
+
+  async function runBot() {
+    if (!lastCode) { setStatus(L("Сначала собери код.", "Compile first."), "error"); return; }
+    // The token is usually already in token("..."): do not ask for it again.
+    var token = "";
+    if (!lastHasToken) {
+      var entered = window.prompt(
+        "У бота нет токена. Впиши его (Enter - взять из TG_BOT_TOKEN):", "");
+      if (entered === null) { return; }
+      token = entered;
+    }
+    try {
+      var response = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: lastCode, token: token })
+      });
+      var data = await response.json();
+      if (!data.ok) { setStatus(data.error || L("не запустилось", "did not start"), "error"); return; }
+      logSince = 0;
+      logEl.textContent = "";
+      setStatus(L("Запущен (pid ", "Running (pid ") + data.pid + L("). Логи ниже.", "). Logs below."), "ok");
+      startPolling();
+      pollLogs();
+    } catch (error) {
+      setStatus(L("Нет связи с сервером: ", "Cannot reach the server: ") + error, "error");
+    }
+  }
+
+  async function stopBot() {
+    await fetch("/api/stop", { method: "POST" });
+    setStatus(L("Остановлен.", "Stopped."), "ok");
+    pollLogs();
+  }
+
+  document.getElementById("btn-run").addEventListener("click", runBot);
+  document.getElementById("btn-stop").addEventListener("click", stopBot);
+  document.getElementById("btn-stop").disabled = true;
+
+  document.getElementById("btn-open").addEventListener("click", function () {
+    importInput.value = "";
+    importInput.click();
+  });
+  document.getElementById("btn-clear").addEventListener("click", function () {
+    if (!source.value.trim()) { return; }
+    if (!window.confirm(L("Очистить текст?", "Clear the text?"))) { return; }
+    source.value = "";
+    refresh();
+    schedule();
+    // Clearing here clears the shared bot for the other two views as well.
+    TgProject.saveText("");
+    setStatus(L("Пусто.", "Empty."), "ok");
+  });
+  (async function bootFiles() {
+    await loadSchema();
+    await loadFile(TgProject.currentName());
+  })();
+
+  refresh();
+  setStatus(L("Enter - авто-отступ · Tab / Shift+Tab - отступ блока · Ctrl+Enter - собрать.", "Enter - auto-indent · Tab / Shift+Tab - indent a block · Ctrl+Enter - compile."));
+
+  // The snippet palette is rebuilt in the new language without losing the code.
+  window.TgUiOnChange = function () {
+    loadSchema();
+    refresh();
+  };
+})();
+</script>
+</body>
+</html>

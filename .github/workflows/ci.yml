@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -40,8 +42,11 @@ jobs:
         run: python tools/qa_smoke.py
 
   package:
-    name: build and install the package
+    name: build, test and publish the package
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,3 +88,6 @@ jobs:
         with:
           name: dist
           path: dist/*
+      - name: Publish package to PyPI
+        if: github.event_name == 'release' && github.event.action == 'published'
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -323,6 +323,12 @@ python tools/qa_smoke.py                 # endpoints plus the editor-to-editor h
 
 MIT - see [LICENSE](LICENSE).
 
+## Support the project
+
+If you find `tgblocks` useful, you can buy me a coffee to support further development. This is a voluntary donation, not a payment for software.
+
+[![DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-blue?style=flat)](https://www.donationalerts.com/r/Coder_x)
+
 ## Русский
 
 `tgblocks` - маленький язык и три редактора для Telegram-ботов на aiogram 3. Написал

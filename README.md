@@ -37,8 +37,12 @@ pip install -e ".[dev,runtime]"
 
 ### Run without installing globally (pipx)
 
-If you don't want to install `tgblocks` into your main Python environment, use `pipx`:
-
+If you don't want to install `tgblocks` into your main Python environment, use `pipx` but first, install the dependencies:
+```bash
+python -m pip install --user pipx
+python -m pipx ensurepath
+```
+Then restart the command prompt and enter:
 ```bash
 pipx run --spec "tgblocks[runtime]" tgblocks
 ```

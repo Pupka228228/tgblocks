@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tgblocks"
-version = "0.2.8"
+version = "0.2.9"
 description = "Visual editor for building Telegram bots on aiogram 3"
 readme = "README.md"
 requires-python = ">=3.10"

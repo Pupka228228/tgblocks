@@ -1,0 +1,107 @@
+# Всё, что умеет tgblocks, в одном боте.
+# Запуск:  tgblocks run examples/full.tg --token 123456:ABC
+# Проверка: tgblocks check examples/full.tg
+
+bot token "PASTE_YOUR_TOKEN"
+bot name "tgblocks full"
+# bot proxy "socks5://127.0.0.1:1080"
+# bot webhook "https://example.com/hook"
+# bot webhook_path "/hook"
+# bot webhook_secret "секрет"
+
+# шаги диалога заказа
+state order
+state phone
+
+# ---------------------------------------------------------------- команды
+on /start:
+    send "Привет! Выбери, что показать, или сделай заказ."
+    buttons:
+        "Меню" -> /menu
+        "Заказ" -> /order
+        "Сайт" -> url "https://example.com"
+
+on /menu:
+    send "Вот что я умею:"
+    buttons reply:
+        "/start"
+        "/order"
+
+# ------------------------------------------------------------------ заказ
+on /order:
+    send "Что заказать?"
+    set_state order
+
+on state order:
+    send "Записал. Теперь телефон?"
+    set_state phone
+
+on state phone:
+    send "Готово! Заказ принят."
+    clear_state
+
+on /cancel:
+    clear_state
+    send "Отменил."
+
+# ------------------------------------------------------------------ медиа
+on /photo:
+    send_photo "https://picsum.photos/600/400" "Случайная картинка"
+
+on /doc:
+    send_document "https://example.com/file.pdf" "Инструкция"
+
+on /poll:
+    send_poll "Чай или кофе?" "Чай" "Кофе" "Воду"
+
+on /where:
+    send_location 55.75 37.61
+
+on /phone:
+    send_contact "+10000000000" "Поддержка"
+
+# ------------------------------------------------------- кнопки и ответы
+on /confirm:
+    send "Уверен?"
+    buttons:
+        "Да" -> /confirmed
+        "Нет" -> /cancelled
+
+on /confirmed:
+    edit_text "Готово: подтверждено."
+    answer_callback "Записал!"
+
+on /cancelled:
+    edit_text "Ок, отменил."
+
+# ----------------------------------------------------------------- фильтры
+on message chat=supergroup:
+    when text contains "спам":
+        delete
+        ban_user
+    else:
+        send "В группе пишем по делу."
+
+on message from_user=0 regex="^[0-9]+$":
+    send "Это число: понял."
+
+on callback "/buy":
+    send "Покупаем!"
+    answer_callback "Перехожу к оплате" alert
+
+# ------------------------------------------------------------- сервисное
+on /log:
+    log "кто-то нажал /log"
+    send "Записал в лог"
+
+on photo:
+    send "Хорошее фото."
+
+on sticker:
+    send "Стикер принят."
+
+on any:
+    when text contains "привет":
+        send "И тебе привет!"
+    else:
+        send "Напиши /menu, /order или /help."

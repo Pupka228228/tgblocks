@@ -1,0 +1,1966 @@
+
+<!DOCTYPE html>
+<html lang="ru" translate="no">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="title_nodes">tgblocks - узлы</title>
+<style>
+  :root { --chip:#1b2033; --chip-hover:#242b48; --field:#11151f; --scroll:#3a4166; --log:#0b0e16; --log-fg:#9aa2c6; --flyout:#1d2136; --tok-key:#c98bff; --tok-fn:#7ee0a8; --tok-str:#f0a35e; --tok-num:#5b8cff; --tok-com:#5d6488; --tok-pun:#8d93b4; --bg:#0e111c; --panel:#161a28; --line:#272c42; --fg:#e8eaf4; --muted:#8d93b4;
+          --accent:#5b8cff; --ok:#7ee0a8; --err:#ff8f8f; --node:#1d2233; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; display:flex; flex-direction:column; background:var(--bg); color:var(--fg);
+         font:13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 12px;
+           background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1 { margin:0 8px 0 0; font-size:13px; font-weight:600; letter-spacing:.3px; }
+  header h1 span { color:var(--muted); font-weight:400; }
+  .spacer { flex:1; }
+  button { font:inherit; color:var(--fg); background:var(--chip-hover); border:1px solid var(--line);
+           border-radius:6px; padding:5px 9px; cursor:pointer; white-space:nowrap; }
+  button:hover { background:#2c3260; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.tool { padding:5px 8px; min-width:30px; }
+  .file-name { color:var(--muted); font-size:12px; padding:0 4px; }
+  main { flex:1; display:flex; min-height:0; }
+  #canvas { position:relative; flex:1 1 auto; min-width:200px; overflow:hidden;
+            background-image:radial-gradient(#20243a 1px, transparent 1px);
+            background-size:26px 26px; cursor:grab; }
+  #canvas.panning { cursor:grabbing; }
+  #viewport { position:absolute; left:0; top:0; transform-origin:0 0; }
+  #wires { position:absolute; left:0; top:0; pointer-events:auto; }
+  #nodes { position:absolute; left:0; top:0; }
+  .node { position:absolute; width:auto; min-width:250px; max-width:520px;
+          background:var(--node); border:0;
+          border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.35); cursor:grab;
+          user-select:none; }
+  .node:active { cursor:grabbing; }
+  .node.selected { box-shadow:0 0 0 2px rgba(91,140,255,.55); }
+  .node.ok { border-color:#7ee0a8; box-shadow:0 0 0 2px rgba(126,224,168,.35); }
+  .node.bad { opacity:.45; }
+  .node-head { display:flex; align-items:center; gap:6px; padding:6px 8px;
+               border-bottom:1px solid var(--line); }
+  .node-head .kind { font-weight:600; font-size:12px; letter-spacing:.2px; }
+  .node-head .badge { margin-left:auto; color:var(--muted); font-size:11px; max-width:110px;
+                      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .node-head .del { padding:0 6px; background:transparent; border:0; color:var(--muted); }
+  .node-head .del:hover { color:var(--err); }
+  .node-note { color:var(--muted); font-size:12px; padding:2px 0; }
+  .node-body { padding:7px 8px 9px; display:flex; flex-direction:column; gap:6px; }
+  .node-body input, .node-body select {
+      font:inherit; width:100%; min-width:0; padding:4px 6px; color:var(--fg);
+      background:var(--field); border:1px solid var(--line); border-radius:5px; cursor:text; }
+  .node-body select { cursor:pointer; }
+  .node-body input:focus, .node-body select:focus { outline:none; border-color:var(--accent); }
+  /* a condition can compare against any number of texts, added one by one */
+  .value-row { display:flex; gap:4px; align-items:center; }
+  .value-row input { flex:1; }
+  .value-del { flex:0 0 auto; width:26px; padding:4px 0; text-align:center;
+               background:var(--chip); border:1px solid var(--line); border-radius:5px;
+               color:var(--muted); cursor:pointer; }
+  .value-del:hover { color:var(--err); border-color:var(--err); }
+  .value-add { width:100%; padding:2px 0; font-size:12px; text-align:left;
+               background:none; border:0; color:var(--accent); cursor:pointer; }
+  .value-add:hover { color:#fff; text-decoration:underline; }
+  .port { position:absolute; cursor:crosshair; display:flex; align-items:center;
+          justify-content:center; font-size:11px; line-height:1; color:#0e111c;
+          font-weight:700; border:2px solid rgba(0,0,0,.35); }
+  .port:hover { filter:brightness(1.25); }
+  .port.in { left:50%; top:-11px; margin-left:-11px; width:22px; height:22px;
+             border-radius:50%; background:#7ee0a8; }
+  .port.in.cond { background:#8d93b4; }
+  .port.inside { right:-9px; top:8px; bottom:8px; width:18px; border-radius:9px;
+                 background:#5b8cff; }
+  .port.cond { left:50%; bottom:-11px; margin-left:-11px; width:22px; height:22px;
+               border-radius:50%; background:#8d93b4; }
+  .port.elseout { left:50%; bottom:-11px; margin-left:-11px; width:22px; height:22px;
+                  border-radius:50%; background:#f0a35e; }
+  .port.in.else { background:#f0a35e; }
+  .port:hover, .port.hot { background:var(--accent); border-color:#fff; }
+  #palette { flex:0 0 208px; background:var(--panel); border-right:1px solid var(--line);
+             padding:10px 8px 12px 10px; overflow-y:auto; overflow-x:hidden;
+             display:flex; flex-direction:column; gap:12px;
+             scrollbar-width:thin; scrollbar-color:var(--scroll) transparent;
+             scrollbar-gutter:stable; }
+  .pal-title { color:var(--muted); font-size:10.5px; text-transform:uppercase;
+               letter-spacing:.7px; margin-bottom:6px; }
+  .pal-item { display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+              width:100%; min-width:0; text-align:left; background:var(--chip);
+              border:1px solid var(--line);
+              border-radius:8px; padding:7px 9px; margin-bottom:6px; cursor:pointer; }
+  .pal-item:hover { border-color:var(--accent); background:var(--chip-hover); }
+  .pal-item b { font-size:12.5px; font-weight:600; }
+  /* long hints wrap instead of widening the palette */
+  .pal-item span { color:var(--muted); font-size:10.5px; line-height:1.25;
+                   white-space:normal; overflow-wrap:anywhere; }
+  .pal-hint { margin-top:auto; color:var(--muted); font-size:10.5px; line-height:1.4; }
+  #splitter { flex:0 0 7px; cursor:col-resize; background:var(--line); position:relative; }
+  #splitter:hover, #splitter.active { background:var(--accent); }
+  aside { flex:0 0 440px; min-width:240px; display:flex; flex-direction:column; min-height:0; }
+  .tabs { display:flex; gap:6px; padding:7px 10px; background:var(--panel);
+          border-bottom:1px solid var(--line); }
+  .tab { padding:4px 10px; border-radius:6px; color:var(--muted); cursor:pointer; }
+  .tab.active { color:var(--fg); background:var(--chip-hover); }
+  pre { flex:1; margin:0; padding:12px; overflow:auto; white-space:pre; tab-size:4;
+        font:12px/1.5 "Cascadia Code", Consolas, "Courier New", monospace;
+        scrollbar-width:thin; scrollbar-color:var(--scroll) transparent; }
+  #status { min-height:34px; padding:8px 10px; border-top:1px solid var(--line);
+            color:var(--muted); white-space:pre-wrap; font-size:12px; }
+  #status.ok { color:var(--ok); } #status.error { color:var(--err); }
+  #pane-log { color:var(--log-fg); }
+  #wires path.wire { pointer-events:stroke; cursor:pointer; }
+  #wires path.wire-hit { pointer-events:stroke; cursor:pointer; }
+  /* hovering near the line lights up the whole grab area */
+  #wires path.wire-hit:hover { stroke:rgba(255,143,143,.20); }
+  #wires path.wire:hover { stroke:#ff8f8f; stroke-width:3; }
+  .hidden { display:none !important; }
+  /* A field must never spill out of its block: padding and border count into
+     the width of the box, not on top of it. */
+  .node-body input, .node-body select { box-sizing:border-box; }
+  /* a caption above every field: a drop-down alone does not say what it is */
+  .node-body .field { display:flex; flex-direction:column; gap:2px; }
+  .node-body .field-label { color:var(--muted); font-size:10.5px; line-height:1.2; }
+  /* a filter that came from the text view: readable, and removable in one click */
+  .node-body .hidden-value { display:flex; align-items:center; gap:6px;
+    background:var(--chip); border:1px dashed var(--line); border-radius:5px;
+    padding:3px 6px; font-size:11.5px; color:var(--muted); }
+  .node-body .hidden-value span { flex:1 1 auto; min-width:0; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .node-body .hidden-clear { flex:0 0 auto; padding:0 5px; border:0; cursor:pointer;
+    background:transparent; color:var(--muted); font:inherit; }
+  .node-body .hidden-clear:hover { color:var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <h1>tgblocks <span data-i18n="page_nodes">узлы</span></h1>
+  <button id="btn-open" data-i18n="open" title="открыть файл бота">Открыть файл…</button>
+  <span id="file-name" class="file-name">bot1</span>
+  <button id="btn-clear" data-i18n="clear" title="удалить все блоки">Очистить</button>
+  <button id="btn-run" data-i18n="run" title="запустить бота">▶ Запустить</button>
+  <button id="btn-stop" data-i18n="stop" title="остановить бота">■ Стоп</button>
+  <span class="spacer"></span>
+  <button id="btn-py" data-i18n="download">Скачать .py</button>
+  <button id="btn-copy" data-i18n="copy">Копировать</button>
+  <a href="/text" style="color:var(--muted);text-decoration:none;padding:5px 8px;
+     border:1px solid var(--line);border-radius:6px;" data-i18n="view_text">Вид: текст</a>
+  <a href="/blocks" style="color:var(--muted);text-decoration:none;padding:5px 8px;
+     border:1px solid var(--line);border-radius:6px;" data-i18n="view_blocks">Вид: блоки</a>
+</header>
+<main>
+  <nav id="palette"></nav>
+  <input id="import" type="file" accept=".json" class="hidden" />
+  <div id="canvas">
+    <div id="viewport">
+      <svg id="wires" width="2000" height="1600"></svg>
+      <div id="handles"></div>
+      <div id="nodes"></div>
+    </div>
+  </div>
+  <div id="splitter" title="resize the panel"></div>
+  <aside id="aside">
+    <div class="tabs">
+      <div class="tab active" data-pane="text" data-i18n="tab_text">Текст</div>
+      <div class="tab" data-pane="code" data-i18n="tab_python">Python</div>
+      <div class="tab" data-pane="logs" data-i18n="tab_logs">Логи</div>
+    </div>
+    <pre id="pane-text"></pre>
+    <pre id="pane-code" class="hidden"></pre>
+    <pre id="pane-log" class="hidden"></pre>
+    <div id="status">Добавь «Бот» в меню слева. Колесо - масштаб, тяни фон - панорама,
+тяни узел - двигать, тяни точку - связать, Delete - удалить.</div>
+  </aside>
+</main>
+<input id="file" type="file" accept=".json" class="hidden" />
+<script src="/tgblocks-project.js"></script>
+<script src="/tgblocks-ui.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var LABEL = {
+    bot: "Бот", event: "Событие", buttons: "Клавиатура", button: "Кнопка",
+    when: "Условие", otherwise: "Иначе"
+  };
+  var LABEL_EN = {
+    bot: "Bot", event: "Event", buttons: "Keyboard", button: "Button",
+    when: "Condition", otherwise: "Else"
+  };
+
+  function labelOf(type) {
+    if (window.TgUi && TgUi.lang() === "en" && LABEL_EN[type]) {
+      return LABEL_EN[type];
+    }
+    return LABEL[type] || type;
+  }
+  // The palette, the property fields and the legal connections all come from
+  // the server-side catalogue (/api/schema): a new aiogram feature shows up here
+  // without touching this page.
+  var SCHEMA = { actions: [], events: [], groups: [], filters: [], keyboards: [],
+                 buttons: [], condition_ops: [] };
+  var ACTION = {};   // action kind -> spec
+  var EVENT = {};    // event kind -> spec
+
+  function nodeTypeOf(kind) { return kind === "send_photo" ? "photo" : kind; }
+
+  function actionKindOf(type) { return type === "photo" ? "send_photo" : type; }
+
+  function eventKindOf(kind) { return kind === "message" ? "text" : kind; }
+  var state = { nodes: {}, counter: 0, rootId: null, selected: null, drag: null,
+                manual: false, view: { scale: 1, tx: 24, ty: 16 } };
+  var history = [], future = [];
+
+  var nodesEl = document.getElementById("nodes");
+  var handlesEl = document.getElementById("handles");
+  var wiresEl = document.getElementById("wires");
+  var viewportEl = document.getElementById("viewport");
+  var canvasEl = document.getElementById("canvas");
+  var asideEl = document.getElementById("aside");
+  var splitterEl = document.getElementById("splitter");
+  var dslPane = document.getElementById("pane-text");
+  var codePane = document.getElementById("pane-code");
+  var statusEl = document.getElementById("status");
+  var lastDsl = "", lastCode = "", lastHasToken = false;
+  var restoring = false;   // true while the canvas is being rebuilt from text
+
+  async function loadSchema() {
+    try {
+      var response = await fetch("/api/schema?lang=" +
+                                 (window.TgUi ? TgUi.lang() : "ru"));
+      var data = await response.json();
+      if (!data || !data.actions) { return; }
+      SCHEMA = data;
+      SCHEMA.actions.forEach(function (item) {
+        ACTION[item.kind] = item;
+        LABEL[nodeTypeOf(item.kind)] = TgUi.tr(item);
+      });
+      SCHEMA.events.forEach(function (item) { EVENT[item.kind] = item; });
+      buildPalette();
+    } catch (error) {
+      log("не удалось получить схему блоков: " + error);
+    }
+  }
+
+  function buildPalette() {
+    var palette = document.getElementById("palette");
+    palette.innerHTML = "";
+
+    function section(title) {
+      var box = document.createElement("div");
+      var head = document.createElement("div");
+      head.className = "pal-title";
+      head.textContent = title;
+      box.appendChild(head);
+      palette.appendChild(box);
+      return box;
+    }
+
+    function entry(box, add, title, hint) {
+      var button = document.createElement("button");
+      button.className = "pal-item";
+      button.dataset.add = add;
+      var name = document.createElement("b");
+      name.textContent = title;
+      button.appendChild(name);
+      if (hint) {
+        var note = document.createElement("span");
+        note.textContent = hint;
+        button.appendChild(note);
+      }
+      box.appendChild(button);
+    }
+
+    var base = section(L("Основа", "Basics"));
+    entry(base, "bot", L("Бот", "Bot"), L("токен и прокси", "token and proxy"));
+    entry(base, "event", L("Событие", "Event"),
+          L("команда, сообщение, кнопка", "command, message, button"));
+
+    var groups = SCHEMA.groups.map(function (group) {
+      return [group.kind, TgUi.tr(group)];
+    });
+    groups.forEach(function (pair) {
+      var items = SCHEMA.actions.filter(function (item) {
+        return item.group === pair[0];
+      });
+      if (!items.length && pair[0] !== "keyboard") { return; }
+      var box = section(pair[1]);
+      if (pair[0] === "keyboard") {
+        entry(box, "buttons", L("Клавиатура", "Keyboard"),
+              L("набор кнопок под сообщением", "a set of buttons under the message"));
+        entry(box, "button", L("Кнопка", "Button"), L("внутри клавиатуры", "inside a keyboard"));
+      }
+      items.forEach(function (item) {
+        entry(box, nodeTypeOf(item.kind), TgUi.tr(item), TgUi.hint(item));
+      });
+    });
+  }
+
+  // One-line translator for the few words that live in this page, not in the
+  // catalogue: `L("по-русски", "in english")`.
+  function L(ru, en) { return TgUi.lang() === "en" ? en : ru; }
+
+  function clamp(value, low, high) { return Math.min(high, Math.max(low, value)); }
+
+  function log(message) {
+    // Everything about linking also goes to the browser console (F12).
+    if (window.console && console.log) { console.log("[tgblocks] " + message); }
+  }
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = kind || "";
+  }
+
+  function literal(value) {
+    return JSON.stringify(String(value == null ? "" : value));
+  }
+
+  function uid(prefix) {
+    state.counter += 1;
+    return prefix + state.counter;
+  }
+
+  function createNode(type, props, parent) {
+    var node = { id: uid(type.charAt(0)), type: type, props: props || {},
+                 parent: parent || null, children: [] };
+    state.nodes[node.id] = node;
+    return node;
+  }
+
+  function isContainer(type) {
+    return type === "bot" || type === "event" || type === "when" ||
+           type === "otherwise" || type === "send" || type === "buttons";
+  }
+
+  function childAllowed(parentType, childType) {
+    if (parentType === "bot") { return childType === "event"; }
+    if (parentType === "buttons") { return childType === "button"; }
+    if (parentType === "send") { return childType === "buttons"; }
+    if (childType === "bot" || childType === "event") { return false; }
+    if (childType === "button") { return false; }
+    if (parentType === "when" || parentType === "event" || parentType === "otherwise") {
+      return true;
+    }
+    return false;
+  }
+
+  function ancestors(node) {
+    // parent is a node id, not an object: walk through state.nodes.
+    var out = [];
+    var current = node && node.parent ? state.nodes[node.parent] : null;
+    while (current) {
+      out.push(current.id);
+      current = current.parent ? state.nodes[current.parent] : null;
+    }
+    return out;
+  }
+
+  function subtreeIds(node) {
+    var out = [node.id];
+    node.children.forEach(function (id) { out = out.concat(subtreeIds(state.nodes[id])); });
+    return out;
+  }
+
+  function parentsOf(nodeId) {
+    return Object.keys(state.nodes).filter(function (id) {
+      return (state.nodes[id].children || []).indexOf(nodeId) >= 0;
+    });
+  }
+
+  function reaches(startId, targetId) {
+    var stack = [startId], seen = {};
+    while (stack.length) {
+      var id = stack.pop();
+      if (seen[id]) { continue; }
+      seen[id] = true;
+      if (id === targetId) { return true; }
+      var node = state.nodes[id];
+      if (node) { (node.children || []).forEach(function (child) { stack.push(child); }); }
+    }
+    return false;
+  }
+
+  function detach(node) {
+    // A block may have several parents: cut every incoming link.
+    Object.keys(state.nodes).forEach(function (id) {
+      var parent = state.nodes[id];
+      parent.children = (parent.children || []).filter(function (child) {
+        return child !== node.id;
+      });
+    });
+    node.parent = null;
+  }
+
+  // ------------------------------------------------------------- view (zoom)
+  function applyView() {
+    var view = state.view;
+    viewportEl.style.transform = "translate(" + view.tx + "px," + view.ty + "px) scale(" +
+                                 view.scale + ")";
+  }
+
+  function toModel(clientX, clientY) {
+    var rect = canvasEl.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - state.view.tx) / state.view.scale,
+      y: (clientY - rect.top - state.view.ty) / state.view.scale
+    };
+  }
+
+  function zoomAt(clientX, clientY, factor) {
+    var rect = canvasEl.getBoundingClientRect();
+    var next = clamp(state.view.scale * factor, 0.25, 2.5);
+    var px = clientX - rect.left;
+    var py = clientY - rect.top;
+    state.view.tx = px - (px - state.view.tx) * (next / state.view.scale);
+    state.view.ty = py - (py - state.view.ty) * (next / state.view.scale);
+    state.view.scale = next;
+    applyView();
+  }
+
+  function zoomCenter(factor) {
+    var rect = canvasEl.getBoundingClientRect();
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+  }
+
+  function fitView() {
+    var elements = Array.from(nodesEl.children);
+    if (!elements.length) {
+      state.view = { scale: 1, tx: 24, ty: 16 };
+      applyView();
+      return;
+    }
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    elements.forEach(function (el) {
+      var x = parseFloat(el.style.left) || 0;
+      var y = parseFloat(el.style.top) || 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + el.offsetWidth);
+      maxY = Math.max(maxY, y + el.offsetHeight);
+    });
+    var rect = canvasEl.getBoundingClientRect();
+    var width = Math.max(1, maxX - minX);
+    var height = Math.max(1, maxY - minY);
+    var scale = clamp(Math.min((rect.width - 80) / width, (rect.height - 80) / height), 0.25, 1.4);
+    state.view.scale = scale;
+    state.view.tx = (rect.width - width * scale) / 2 - minX * scale;
+    state.view.ty = (rect.height - height * scale) / 2 - minY * scale;
+    applyView();
+  }
+
+  // --------------------------------------------------------------- history
+  function snapshot() {
+    history.push(JSON.stringify({ nodes: state.nodes, counter: state.counter,
+                                  rootId: state.rootId, manual: state.manual }));
+    if (history.length > 60) { history.shift(); }
+    future.length = 0;
+  }
+
+  function restore(raw) {
+    var data = JSON.parse(raw);
+    state.nodes = data.nodes;
+    state.counter = data.counter;
+    state.rootId = data.rootId;
+    state.manual = data.manual;
+    state.selected = null;
+    render();
+  }
+
+  function undo() {
+    if (!history.length) { setStatus(L("Отменять нечего.", "Nothing to undo.")); return; }
+    future.push(JSON.stringify({ nodes: state.nodes, counter: state.counter,
+                                 rootId: state.rootId, manual: state.manual }));
+    restore(history.pop());
+    setStatus(L("Отменено.", "Undone."), "ok");
+  }
+
+  function redo() {
+    if (!future.length) { setStatus(L("Повторять нечего.", "Nothing to redo.")); return; }
+    history.push(JSON.stringify({ nodes: state.nodes, counter: state.counter,
+                                  rootId: state.rootId, manual: state.manual }));
+    restore(future.pop());
+    setStatus(L("Повторено.", "Redone."), "ok");
+  }
+
+  // ------------------------------------------------------------------ edit
+  function removeNode(node) {
+    if (!node) { return; }
+    snapshot();
+    var doomed = subtreeIds(node);
+    doomed.forEach(function (id) { delete state.nodes[id]; });
+    detach(node);
+    if (doomed.indexOf(state.rootId) >= 0) { state.rootId = null; }
+    state.selected = null;
+    render();
+    scheduleCompile();
+    var box = Array.from(nodesEl.children).map(function (el) {
+      return { x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 };
+    });
+    if (box.length) {
+      var rect = canvasEl.getBoundingClientRect();
+      var visible = box.some(function (point) {
+        return point.x * state.view.scale + state.view.tx < rect.width &&
+               point.y * state.view.scale + state.view.ty < rect.height &&
+               point.x * state.view.scale + state.view.tx > -200 &&
+               point.y * state.view.scale + state.view.ty > -200;
+      });
+      if (!visible) { fitView(); }
+    }
+  }
+
+  function clearOutput(message) {
+    lastDsl = "";
+    lastCode = "";
+    dslPane.textContent = "";
+    codePane.textContent = "";
+    if (message) { setStatus(message); }
+  }
+
+  function duplicate(node) {
+    if (!node || !node.parent) { setStatus(L("Выбери узел внутри бота.", "Pick a block inside the bot."), "error"); return; }
+    snapshot();
+    function clone(source) {
+      var copy = { id: uid(source.type.charAt(0)), type: source.type,
+                   props: JSON.parse(JSON.stringify(source.props)), parent: null, children: [] };
+      state.nodes[copy.id] = copy;
+      source.children.forEach(function (id) {
+        var child = clone(state.nodes[id]);
+        child.parent = copy.id;
+        copy.children.push(child.id);
+      });
+      return copy;
+    }
+    var parent = state.nodes[node.parent];
+    var index = parent.children.indexOf(node.id);
+    var copy = clone(node);
+    copy.parent = parent.id;
+    parent.children.splice(index + 1, 0, copy.id);
+    state.selected = copy.id;
+    render();
+  }
+
+  function defaultProps(type) {
+    // Defaults come from the catalogue, so a new block starts with sensible
+    // values without a second table in this file.
+    if (type === "bot") { return { token: "PASTE_YOUR_TOKEN", proxy: "" }; }
+    if (type === "event") { return { kind: "command", command: "/start" }; }
+    if (type === "buttons") { return { style: "inline" }; }
+    if (type === "button") { return { label: "Кнопка", target: "", kind: "command" }; }
+    if (type === "when") { return { op: "contains", value: "привет" }; }
+    if (type === "otherwise") { return {}; }
+    var spec = ACTION[actionKindOf(type)];
+    var props = {};
+    if (!spec) { return props; }
+    (spec.params || []).forEach(function (param) {
+      if (param.kind === "values") { props[param.name] = []; }
+      else if (param.kind === "bool") { props[param.name] = "false"; }
+      else { props[param.name] = param.default != null ? param.default : ""; }
+    });
+    if (type === "send" && !props.text) { props.text = "Привет!"; }
+    return props;
+  }
+
+  function addNode(type) {
+    if (type === "bot" && state.rootId) {
+      setStatus(L("Бот уже есть - он один.", "There is only one bot block."), "error");
+      return;
+    }
+    snapshot();
+    var node = createNode(type, defaultProps(type), null);
+    var rect = canvasEl.getBoundingClientRect();
+    var center = toModel(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    node.x = Math.round(center.x - 125);
+    node.y = Math.round(center.y - 40);
+    // find a free spot: do not drop a new block on top of an existing one
+    var occupied = Object.keys(state.nodes)
+      .map(function (id) { return state.nodes[id]; })
+      .filter(function (other) { return other.id !== node.id && other.x != null; });
+    var guard = 0;
+    while (guard < 80 && occupied.some(function (other) {
+      return Math.abs(other.x - node.x) < 270 && Math.abs(other.y - node.y) < 150;
+    })) {
+      node.y += 160;
+      if (guard % 3 === 2) { node.x += 290; node.y -= 320; }
+      guard += 1;
+    }
+    if (type === "bot") { state.rootId = node.id; }
+    state.selected = node.id;
+    render();
+    scheduleCompile();
+    if (type !== "bot") {
+      setStatus(L("Блок добавлен свободно. Соедини его с «Бот» и другими блоками точками.", "Block added on its own. Connect it to the bot and the others by the dots."));
+    }
+  }
+
+  // ----------------------------------------------------------------- render
+  function buildBody(node) {
+    var body = document.createElement("div");
+    body.className = "node-body";
+
+    function input(key, placeholder) {
+      var el = document.createElement("input");
+      el.value = node.props[key] || "";
+      el.placeholder = placeholder;
+      el.addEventListener("input", function () {
+        node.props[key] = el.value;
+        drawWires();
+        scheduleCompile();
+      });
+      return el;
+    }
+
+    function select(pairs, key, fallback, onChange) {
+      var el = document.createElement("select");
+      pairs.forEach(function (pair) {
+        var option = document.createElement("option");
+        option.value = pair[0];
+        option.textContent = pair[1];
+        if ((node.props[key] || fallback) === pair[0]) { option.selected = true; }
+        el.appendChild(option);
+      });
+      el.addEventListener("change", function () {
+        node.props[key] = el.value;
+        if (onChange) { onChange(); }
+        scheduleCompile();
+      });
+      return el;
+    }
+
+    function listInput(key, placeholder) {
+      // A list field (message patterns): shown as "a, b", stored as an array so
+      // the text view keeps them and the bot keeps reacting to those texts.
+      var el = document.createElement("input");
+      var current = node.props[key];
+      el.value = Array.isArray(current) ? current.join(", ") : (current || "");
+      el.placeholder = placeholder;
+      el.addEventListener("input", function () {
+        node.props[key] = el.value.split(",")
+          .map(function (item) { return item.trim(); })
+          .filter(function (item) { return item.length > 0; });
+        drawWires();
+        scheduleCompile();
+      });
+      return el;
+    }
+
+    function valueRow(list, index) {
+      // One extra comparison value of a condition.
+      var row = document.createElement("div");
+      row.className = "value-row";
+
+      var el = document.createElement("input");
+      el.value = list[index] || "";
+      el.placeholder = L("ещё значение", "one more value");
+      el.addEventListener("input", function () {
+        list[index] = el.value;
+        drawWires();
+        scheduleCompile();
+      });
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "value-del";
+      remove.title = "убрать это значение";
+      remove.textContent = "×";
+      remove.addEventListener("click", function (event) {
+        event.stopPropagation();
+        list.splice(index, 1);
+        render();
+        scheduleCompile();
+      });
+
+      row.appendChild(el);
+      row.appendChild(remove);
+      return row;
+    }
+
+    function addValueButton(list, nodeId) {
+      var add = document.createElement("button");
+      add.type = "button";
+      add.className = "value-add";
+      add.textContent = L("+ ещё значение", "+ one more value");
+      add.title = "добавить ещё одно значение: подойдёт любое из них";
+      add.addEventListener("click", function (event) {
+        event.stopPropagation();
+        list.push("");
+        render();
+        // put the cursor straight into the fresh row
+        var node = nodesEl.querySelector('.node[data-id="' + nodeId + '"]');
+        var inputs = node ? node.querySelectorAll(".value-row input") : [];
+        if (inputs.length) { inputs[inputs.length - 1].focus(); }
+        scheduleCompile();
+      });
+      return add;
+    }
+
+    function note(text) {
+      var el = document.createElement("span");
+      el.className = "node-note";
+      el.textContent = text;
+      return el;
+    }
+
+    function paramField(param) {
+      // A caption plus one widget: without the caption a drop-down says
+      // "в любом чате" and nobody knows what it is about.
+      var wrap = document.createElement("div");
+      wrap.className = "field";
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      caption.textContent = TgUi.tr(param) + (param.required ? " *" : "");
+      wrap.appendChild(caption);
+      wrap.appendChild(widgetFor(param));
+      return wrap;
+    }
+
+    function widgetFor(param) {
+      // One widget per catalogue param kind: the schema decides what a block
+      // can hold, so a new aiogram feature gets its fields for free.
+      var key = param.name;
+      if (param.kind === "values") {
+        return listInput(key, TgUi.tr(param));
+      }
+      if (param.kind === "bool") {
+        return select([["false", L("нет", "no")], ["true", L("да", "yes")]],
+                      key, "false");
+      }
+      if (param.kind === "choice") {
+        return select((param.choices || []).map(function (item) {
+          return [String(item.value), TgUi.choiceLabel(item)];
+        }), key, param.default);
+      }
+      // Every text field is one line, like the rest of the block: a taller box
+      // made the canvas uneven. Line breaks are written as \n inside the text.
+      return input(key, TgUi.tr(param));
+    }
+
+    if (node.type === "bot") {
+      body.appendChild(input("token", L("токен от @BotFather", "token from @BotFather")));
+      body.appendChild(input("proxy", L("прокси (пусто - без прокси)",
+                                       "proxy (empty - no proxy)")));
+      body.appendChild(input("name", L("название бота (необязательно)",
+                                      "bot name (optional)")));
+      body.appendChild(input("webhook", L("webhook https://… (необязательно)",
+                                         "webhook https://… (optional)")));
+      return body;
+    }
+
+    if (node.type === "event") {
+      var choices = SCHEMA.events.map(function (item) {
+        return [item.kind === "text" ? "message" : item.kind, TgUi.tr(item)];
+      });
+      if (!choices.length) { choices = [["command", L("команда", "command")]]; }
+      body.appendChild(select(choices, "kind", "command", render));
+      var eventSpec = EVENT[eventKindOf(node.props.kind || "command")];
+      if (eventSpec) {
+        (eventSpec.params || []).forEach(function (param) {
+          // "Only these texts" and "matches a pattern" are hidden: a `when`
+          // condition shows the same filter on the canvas, and one place to edit
+          // it is better than two.
+          if (param.hidden) { return; }
+          body.appendChild(paramField(param));
+        });
+        (eventSpec.params || []).forEach(function (param) {
+          if (!param.hidden) { return; }
+          if (!hasValue(node.props[param.name])) { return; }
+          body.appendChild(hiddenFilter(param, node));
+        });
+      }
+      return body;
+    }
+
+    function hasValue(value) {
+      if (Array.isArray(value)) {
+        return value.some(function (item) { return String(item).trim() !== ""; });
+      }
+      return value != null && String(value).trim() !== "";
+    }
+
+    // A filter that came from the text view (regex, a list of exact texts) keeps
+    // working, but the canvas shows it as a read-only chip with a way to drop it:
+    // dropping the field silently would change the bot on the next compile.
+    function hiddenFilter(param, node) {
+      var wrap = document.createElement("div");
+      wrap.className = "field hidden-filter";
+      var caption = document.createElement("span");
+      caption.className = "field-label";
+      caption.textContent = TgUi.tr(param);
+      wrap.appendChild(caption);
+
+      var row = document.createElement("div");
+      row.className = "hidden-value";
+      var text = document.createElement("span");
+      var value = node.props[param.name];
+      text.textContent = Array.isArray(value) ? value.join(", ") : String(value);
+      text.title = TgUi.hint(param);
+      row.appendChild(text);
+
+      var clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "hidden-clear";
+      clear.textContent = "✕";
+      clear.title = L("убрать фильтр", "remove the filter");
+      clear.addEventListener("click", function (event) {
+        event.stopPropagation();
+        snapshot();
+        delete node.props[param.name];
+        render();
+        scheduleCompile();
+      });
+      row.appendChild(clear);
+      wrap.appendChild(row);
+      return wrap;
+    }
+
+    if (node.type === "buttons") {
+      body.appendChild(select(SCHEMA.keyboards.map(function (item) {
+        return [item.value, TgUi.choiceLabel(item)];
+      }), "style", "inline"));
+      return body;
+    }
+
+    if (node.type === "button") {
+      body.appendChild(input("label", L("текст на кнопке", "button label")));
+      body.appendChild(select(SCHEMA.buttons.map(function (item) {
+        return [item.value, TgUi.choiceLabel(item)];
+      }), "kind", "command", render));
+      var buttonKind = node.props.kind || "command";
+      if (buttonKind !== "contact" && buttonKind !== "location") {
+        body.appendChild(input("target",
+          buttonKind === "command" ? L("/команда", "/command") : "https://…"));
+      }
+      return body;
+    }
+
+    if (node.type === "when") {
+      body.appendChild(select(
+        [["text", L("текст сообщения", "message text")],
+         ["dice", L("интерактивное эмодзи", "interactive emoji")]],
+        "source", "text", render));
+      var dice = (node.props.source || "text") === "dice";
+      body.appendChild(select(
+        dice ? [["==", L("равно", "equals")], ["!=", L("не равно", "not equal")]]
+             : (SCHEMA.condition_ops || []),
+        "op", dice ? "==" : "contains", render));
+      body.appendChild(input("value", dice
+        ? L("число, которое выпало", "the number rolled")
+        : L("текст", "text")));
+      if (!dice) {
+        var extras = node.props.values || (node.props.values = []);
+        extras.forEach(function (item, index) {
+          body.appendChild(valueRow(extras, index));
+        });
+        body.appendChild(addValueButton(extras, node.id));
+      }
+      return body;
+    }
+
+    if (node.type === "otherwise") {
+      body.appendChild(note(L("ветка «иначе»: сюда попадут блоки, если условие не сработало",
+                              "the else branch: runs when the condition fails")));
+      return body;
+    }
+
+    var actionSpec = ACTION[actionKindOf(node.type)];
+    if (!actionSpec) {
+      body.appendChild(note(L("неизвестный блок: ", "unknown block: ") + node.type));
+      return body;
+    }
+    (actionSpec.params || []).forEach(function (param) {
+      body.appendChild(paramField(param));
+    });
+    return body;
+  }
+
+  function render() {
+    Object.keys(state.nodes).forEach(function (id) {
+      var node = state.nodes[id];
+      if (!node || typeof node !== "object" || typeof node.type !== "string") {
+        delete state.nodes[id];
+        return;
+      }
+      node.children = (node.children || []).filter(function (childId) {
+        var child = state.nodes[childId];
+        return !!child && typeof child === "object" && typeof child.type === "string";
+      });
+    });
+    var ghost = document.getElementById("ghost");
+    if (ghost) { ghost.remove(); }
+    nodesEl.innerHTML = "";
+    handlesEl.innerHTML = "";
+    applyView();
+
+    var ids = Object.keys(state.nodes);
+    if (!ids.length) {
+      wiresEl.innerHTML = "";
+      clearOutput("Пусто. Добавь блоки из меню слева и соедини их точками.");
+      return;
+    }
+
+    ids.forEach(function (id) {
+      var node = state.nodes[id];
+      var el = document.createElement("div");
+      el.className = "node" + (state.selected === node.id ? " selected" : "");
+      el.dataset.id = node.id;
+
+      var head = document.createElement("div");
+      head.className = "node-head";
+      var kind = document.createElement("span");
+      kind.className = "kind";
+      kind.textContent = labelOf(node.type);
+      head.appendChild(kind);
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = node.type === "event"
+        ? ((node.props.kind || "command") === "command"
+            ? (node.props.command || "") : (node.props.kind || ""))
+        : "";
+      head.appendChild(badge);
+      var del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "✕";
+      del.addEventListener("click", function (event) {
+        event.stopPropagation();
+        removeNode(node);
+      });
+      head.appendChild(del);
+      el.appendChild(head);
+      el.appendChild(buildBody(node));
+
+      // Бот - корень, входа у него нет. Остальные принимают связь зелёной точкой.
+      if (node.type !== "bot") {
+        var entry = document.createElement("div");
+        var inputClass = node.type === "when" ? " cond" : (node.type === "otherwise" ? " else" : "");
+        entry.className = "port in" + inputClass;
+        entry.dataset.port = "in";
+        entry.dataset.node = node.id;
+        entry.textContent = "\u25BC";
+        el.appendChild(entry);
+      }
+
+      // Синий выход - полоса справа, есть у каждого блока.
+      var nextPort = document.createElement("div");
+      nextPort.className = "port inside";
+      nextPort.dataset.port = "inside";
+      nextPort.dataset.node = node.id;
+      nextPort.textContent = "\u25B6";
+      el.appendChild(nextPort);
+
+      if (node.type === "when") {
+        var elsePort = document.createElement("div");
+        elsePort.className = "port elseout";
+        elsePort.dataset.port = "elseout";
+        elsePort.dataset.node = node.id;
+        elsePort.textContent = "\u25BC";
+        el.appendChild(elsePort);
+      }
+
+      if (node.type === "event") {
+        var condPort = document.createElement("div");
+        condPort.className = "port cond";
+        condPort.dataset.port = "cond";
+        condPort.dataset.node = node.id;
+        condPort.textContent = "\u25BC";
+        el.appendChild(condPort);
+      }
+      el.addEventListener("mousedown", function (event) {
+        state.selected = node.id;
+        Array.from(nodesEl.children).forEach(function (other) {
+          other.classList.toggle("selected", other.dataset.id === node.id);
+        });
+        if (isInteractive(event.target)) { return; }
+        startDragNode(event, node, el);
+      });
+      nodesEl.appendChild(el);
+    });
+
+    layout();
+    drawWires();
+    scheduleCompile();
+  }
+
+  function isInteractive(target) {
+    return !!(target.closest && (target.closest("input") || target.closest("select") ||
+                                 target.closest("button") || target.closest(".port")));
+  }
+
+  function layout() {
+    // Nothing is auto-arranged: every node stays where you dropped it.
+    Array.from(nodesEl.children).forEach(function (el, index) {
+      var node = state.nodes[el.dataset.id];
+      if (!node) { return; }
+      if (node.x == null || node.y == null) {
+        node.x = 40 + (index % 4) * 300;
+        node.y = 40 + Math.floor(index / 4) * 200;
+      }
+      el.style.left = node.x + "px";
+      el.style.top = node.y + "px";
+    });
+    var width = 800, height = 600;
+    Array.from(nodesEl.children).forEach(function (el) {
+      var right = (parseFloat(el.style.left) || 0) + el.offsetWidth + 120;
+      var bottom = (parseFloat(el.style.top) || 0) + el.offsetHeight + 120;
+      if (right > width) { width = right; }
+      if (bottom > height) { height = bottom; }
+    });
+    wiresEl.setAttribute("width", width);
+    wiresEl.setAttribute("height", height);
+    wiresEl.setAttribute("viewBox", "0 0 " + width + " " + height);
+  }
+
+  function portCenter(nodeId, portName) {
+    var el = nodesEl.querySelector('.node[data-id="' + nodeId + '"]');
+    if (!el) { return null; }
+    var left = parseFloat(el.style.left) || 0;
+    var top = parseFloat(el.style.top) || 0;
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
+    if (portName === "in") { return { x: left + width / 2, y: top }; }
+    if (portName === "out") { return { x: left + width / 2, y: top + height }; }
+    return { x: left + width, y: top + height / 2 };
+  }
+
+  function curve(a, b) {
+    var mid = (a.y + b.y) / 2;
+    return "M " + a.x + " " + a.y + " C " + a.x + " " + mid + ", " + b.x + " " + mid +
+           ", " + b.x + " " + b.y;
+  }
+
+  function curveDown(a, b) {
+    // Condition lines leave straight down and only then turn to the block.
+    var drop = Math.max(24, Math.min(120, Math.abs(b.y - a.y) / 2));
+    return "M " + a.x + " " + a.y + " C " + a.x + " " + (a.y + drop) + ", " +
+           b.x + " " + (b.y - drop) + ", " + b.x + " " + b.y;
+  }
+
+  function growWireCanvas() {
+    // The wire sheet must cover every block, otherwise lines get cut off.
+    var width = 800, height = 600;
+    Array.from(nodesEl.children).forEach(function (el) {
+      var right = (parseFloat(el.style.left) || 0) + el.offsetWidth + 240;
+      var bottom = (parseFloat(el.style.top) || 0) + el.offsetHeight + 240;
+      if (right > width) { width = Math.round(right); }
+      if (bottom > height) { height = Math.round(bottom); }
+    });
+    wiresEl.setAttribute("width", width);
+    wiresEl.setAttribute("height", height);
+    wiresEl.setAttribute("viewBox", "0 0 " + width + " " + height);
+  }
+
+  function wireList() {
+    // Blue output = next block: events come from Бот, actions chain from the
+    // previous action. Grey output = condition, and it only feeds "Условие".
+    var out = [];
+    Object.keys(state.nodes).forEach(function (id) {
+      var node = state.nodes[id];
+      var children = (node.children || []).filter(function (childId) {
+        return !!state.nodes[childId];
+      });
+      var lastAction = node.id;
+      children.forEach(function (childId) {
+        var child = state.nodes[childId];
+        if (child.type === "when") {
+          // conditions branch from the parent with the grey output
+          out.push({ parent: node.id, child: childId, source: node.id, port: "cond" });
+          return;
+        }
+        if (child.type === "otherwise") {
+          // "иначе" hangs off the orange output of the condition
+          out.push({ parent: node.id, child: childId, source: node.id, port: "elseout" });
+          return;
+        }
+        // events hang off Бот, actions chain through the blue strip
+        var source = node.type === "bot" ? node.id : lastAction;
+        out.push({ parent: node.id, child: childId, source: source, port: "inside" });
+        if (node.type !== "bot") { lastAction = childId; }
+      });
+    });
+    return out;
+  }
+
+  function insidePoint(nodeId, index, count) {
+    // Fan the children out along the right edge instead of one shared dot.
+    var el = nodesEl.querySelector('.node[data-id="' + nodeId + '"]');
+    if (!el) { return null; }
+    var left = parseFloat(el.style.left) || 0;
+    var top = parseFloat(el.style.top) || 0;
+    var usable = Math.max(24, el.offsetHeight - 28);
+    var step = count > 1 ? usable / count : 0;
+    var y = top + 14 + (count > 1 ? (index + 0.5) * step : usable / 2);
+    return { x: left + el.offsetWidth, y: y };
+  }
+
+  function portDotPoint(nodeId, cls) {
+    var nodeEl = nodesEl.querySelector('.node[data-id="' + nodeId + '"]');
+    if (!nodeEl) { return null; }
+    var dot = nodeEl.querySelector('.port.' + cls);
+    if (!dot) { return null; }
+    var left = parseFloat(nodeEl.style.left) || 0;
+    var top = parseFloat(nodeEl.style.top) || 0;
+    return { x: left + dot.offsetLeft + dot.offsetWidth / 2,
+             y: top + dot.offsetTop + dot.offsetHeight / 2 };
+  }
+
+  function condPoint(nodeId) {
+    // Real position of the grey dot: its own offset inside the block.
+    return portDotPoint(nodeId, "cond");
+  }
+
+  function stripPoint(nodeId, index) {
+    var el = nodesEl.querySelector('.node[data-id="' + nodeId + '"]');
+    if (!el) { return null; }
+    var left = parseFloat(el.style.left) || 0;
+    var top = parseFloat(el.style.top) || 0;
+    var height = el.offsetHeight;
+    var offset = Math.max(-0.35, Math.min(0.35, index * 0.18));
+    return { x: left + el.offsetWidth, y: top + height * (0.5 + offset) };
+  }
+
+  function drawWires() {
+    growWireCanvas();
+    var parts = [];
+    var seen = {};
+    wireList().forEach(function (wire) {
+      var index = seen[wire.source] || 0;
+      seen[wire.source] = index + 1;
+      var from = null;
+      if (wire.port === "cond") {
+        from = condPoint(wire.source);
+      } else if (wire.port === "elseout") {
+        from = portDotPoint(wire.source, "elseout");
+      } else {
+        from = stripPoint(wire.source, index);
+        if (!from) { from = portCenter(wire.source, wire.port); }
+      }
+      var to = portCenter(wire.child, "in");
+      if (!from || !to) { return; }
+      var childId = wire.child;
+      var child = state.nodes[childId];
+      var isCond = child && child.type === "when";
+      var isElse = child && child.type === "otherwise";
+      var path = (isCond || isElse) ? curveDown(from, to) : curve(from, to);
+      var wireColor = isCond ? "#8d93b4" : (isElse ? "#f0a35e" : "#5b8cff");
+      var markerId = isCond ? "tg-arrow-cond" : (isElse ? "tg-arrow-else" : "tg-arrow");
+      parts.push('<path class="wire" data-child="' + childId +
+                 '" data-else="' + (isElse ? "1" : "0") +
+                 '" d="' + path + '" fill="none" stroke="' + wireColor +
+                 '" stroke-width="1.8"' +
+                 ' marker-end="url(#' + markerId + ')" />');
+      // The line keeps its thin look; this fat transparent copy sits on top so
+      // grabbing it (and deleting the link) does not need a pixel-perfect aim.
+      parts.push('<path class="wire-hit" data-child="' + childId +
+                 '" d="' + path + '" fill="none" stroke="transparent"' +
+                 ' stroke-width="26" />');
+    });
+    wiresEl.innerHTML =
+      '<defs>' +
+      '<marker id="tg-arrow" viewBox="0 0 10 10" refX="9" refY="5"' +
+      ' markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="#5b8cff"/></marker>' +
+      '<marker id="tg-arrow-cond" viewBox="0 0 10 10" refX="9" refY="5"' +
+      ' markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="#8d93b4"/></marker>' +
+      '<marker id="tg-arrow-else" viewBox="0 0 10 10" refX="9" refY="5"' +
+      ' markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+      '<path d="M 0 0 L 10 5 L 0 10 z" fill="#f0a35e"/></marker>' +
+      '</defs>' + parts.join("");
+  }
+
+  // ------------------------------------------------------------- interactions
+  var moving = null;
+  var panMoved = false;
+  var panning = null;
+  var splitting = null;
+
+  function startDragNode(event, node, el) {
+    event.preventDefault();
+    if (!state.manual) {
+      snapshot();
+      state.manual = true;
+      Array.from(nodesEl.children).forEach(function (child) {
+        var current = state.nodes[child.dataset.id];
+        if (current && current.x == null) {
+          current.x = parseFloat(child.style.left) || 0;
+          current.y = parseFloat(child.style.top) || 0;
+        }
+      });
+    }
+    moving = { node: node, startX: event.clientX, startY: event.clientY,
+               x: node.x || 0, y: node.y || 0 };
+    el.style.zIndex = 5;
+  }
+
+  canvasEl.addEventListener("mousedown", function (event) {
+    if (!pending) { return; }
+    if (event.target.closest && (event.target.closest(".node") || event.target.closest(".port"))) {
+      return;
+    }
+    pending = null;
+    markTargets(null);
+    setStatus(L("Связывание отменено.", "Linking cancelled."));
+  });
+
+  canvasEl.addEventListener("click", function (event) {
+    if (panMoved) { return; }
+    var path = event.target.closest ? event.target.closest("path[data-child]") : null;
+    if (!path) { return; }
+    event.stopPropagation();
+    var child = state.nodes[path.dataset.child];
+    log("удаляю связь для " + (child ? child.type + "/" + child.id : path.dataset.child));
+    if (!child) { render(); return; }
+    snapshot();
+    detach(child);
+    render();
+    scheduleCompile();
+    setStatus(L("Связь удалена.", "Wire removed."), "ok");
+  });
+
+  canvasEl.addEventListener("mousedown", function (event) {
+    if (event.target.closest(".node")) { return; }
+    panMoved = false;
+    panning = { startX: event.clientX, startY: event.clientY,
+                tx: state.view.tx, ty: state.view.ty };
+    canvasEl.classList.add("panning");
+  });
+
+  var pending = null;
+  var dragMoved = false;
+
+  nodesEl.addEventListener("mousedown", function (event) {
+    var port = event.target.closest(".port");
+    var nodeEl = event.target.closest(".node");
+
+    // Second step of the click mode: the port was already clicked.
+    if (pending) {
+      event.preventDefault();
+      event.stopPropagation();
+      var source = pending;
+      pending = null;
+      markTargets(null);
+      if (nodeEl && nodeEl.dataset.id !== source.node) {
+        link(source, nodeEl.dataset.id);
+      } else {
+        setStatus(L("Связывание отменено.", "Linking cancelled."));
+      }
+      return;
+    }
+
+    if (!port) { return; }
+    event.preventDefault();
+    dragMoved = false;
+    state.drag = { node: port.dataset.node, port: port.dataset.port, hot: null,
+                   startX: event.clientX, startY: event.clientY };
+    var oldGhost = document.getElementById("ghost");
+    if (oldGhost) { oldGhost.remove(); }
+    var ghost = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    ghost.setAttribute("stroke", "#5b8cff");
+    ghost.setAttribute("stroke-width", "1.8");
+    ghost.setAttribute("fill", "none");
+    ghost.setAttribute("stroke-dasharray", "5 4");
+    ghost.id = "ghost";
+    wiresEl.appendChild(ghost);
+    pending = state.drag;
+    markTargets(pending);
+    setStatus(L("Кликни блок - или тяни линию к нему.", "Click a block - or drag the line to it."));
+  });
+
+  splitterEl.addEventListener("mousedown", function (event) {
+    event.preventDefault();
+    splitting = { startX: event.clientX, width: asideEl.offsetWidth };
+    splitterEl.classList.add("active");
+  });
+
+  document.addEventListener("mousemove", function (event) {
+    if (splitting) {
+      var width = clamp(splitting.width - (event.clientX - splitting.startX), 240,
+                        window.innerWidth - 320);
+      asideEl.style.flex = "0 0 " + width + "px";
+      return;
+    }
+    if (panning) {
+      state.view.tx = panning.tx + (event.clientX - panning.startX);
+      state.view.ty = panning.ty + (event.clientY - panning.startY);
+      if (Math.abs(event.clientX - panning.startX) > 4 ||
+          Math.abs(event.clientY - panning.startY) > 4) {
+        panMoved = true;
+      }
+      applyView();
+      return;
+    }
+    if (moving) {
+      var dx = (event.clientX - moving.startX) / state.view.scale;
+      var dy = (event.clientY - moving.startY) / state.view.scale;
+      moving.node.x = Math.max(8, moving.x + dx);
+      moving.node.y = Math.max(8, moving.y + dy);
+      var el = nodesEl.querySelector('.node[data-id="' + moving.node.id + '"]');
+      if (el) {
+        el.style.left = moving.node.x + "px";
+        el.style.top = moving.node.y + "px";
+      }
+      drawWires();
+      return;
+    }
+    if (!state.drag) { return; }
+
+    if (Math.abs(event.clientX - state.drag.startX) > 4 ||
+        Math.abs(event.clientY - state.drag.startY) > 4) {
+      dragMoved = true;
+      pending = null;
+    }
+
+    var ghost = document.getElementById("ghost");
+    var hot = nodesEl.querySelector('.port.hot');
+    if (hot) { hot.classList.remove("hot"); }
+    var hovered = document.elementFromPoint(event.clientX, event.clientY);
+    var nodeEl = hovered && hovered.closest ? hovered.closest(".node") : null;
+    if (nodeEl) {
+      var entry = nodeEl.querySelector(".port.in");
+      if (entry) { entry.classList.add("hot"); }
+      state.drag.hot = canLink(state.drag, nodeEl.dataset.id) ? nodeEl.dataset.id : null;
+    } else {
+      state.drag.hot = null;
+    }
+    if (!ghost) { return; }
+    var source = null;
+    if (state.drag.port === "cond") {
+      source = condPoint(state.drag.node);
+    } else if (state.drag.port === "elseout") {
+      source = portDotPoint(state.drag.node, "elseout");
+    } else {
+      source = portCenter(state.drag.node, state.drag.port);
+    }
+    if (!source) { return; }
+    var targetPoint = toModel(event.clientX, event.clientY);
+    var condDrag = state.drag.port === "cond" || state.drag.port === "elseout";
+    ghost.setAttribute("d", (condDrag ? curveDown : curve)(source, targetPoint));
+  });
+
+  document.addEventListener("mouseup", function () {
+    if (splitting) {
+      splitting = null;
+      splitterEl.classList.remove("active");
+      return;
+    }
+    if (panning) {
+      panning = null;
+      canvasEl.classList.remove("panning");
+      return;
+    }
+    if (moving) {
+      moving = null;
+      scheduleCompile();
+      return;
+    }
+    if (!state.drag) { return; }
+    var drag = state.drag;
+    state.drag = null;
+    var ghost = document.getElementById("ghost");
+    if (ghost) { ghost.remove(); }
+    var hot = nodesEl.querySelector(".port.hot");
+    if (hot) { hot.classList.remove("hot"); }
+
+    if (!dragMoved) {
+      pending = drag;
+      markTargets(pending);
+      setStatus(L("Теперь кликни нужный блок.", "Now click the block you need."));
+      return;
+    }
+
+    markTargets(null);
+    if (drag.hot) { link(drag, drag.hot); }
+  });
+
+  function cancelPointer() {
+    if (state.drag) {
+      state.drag = null;
+      var ghost = document.getElementById("ghost");
+      if (ghost) { ghost.remove(); }
+      markTargets(null);
+    }
+    pending = null;
+    moving = null;
+    panning = null;
+    canvasEl.classList.remove("panning");
+  }
+
+  window.addEventListener("error", function (event) {
+    setStatus(L("Ошибка в редакторе: ", "Editor error: ") + event.message + L(" - открой F12", " - open F12"), "error");
+  });
+
+  window.addEventListener("blur", cancelPointer);
+  document.addEventListener("mouseleave", cancelPointer);
+
+  canvasEl.addEventListener("contextmenu", function (event) {
+    var path = event.target.closest ? event.target.closest("path[data-child]") : null;
+    if (!path) { return; }
+    event.preventDefault();
+    var child = state.nodes[path.dataset.child];
+    if (!child) { return; }
+    snapshot();
+    detach(child);
+    render();
+    scheduleCompile();
+    setStatus(L("Связь удалена.", "Wire removed."), "ok");
+  });
+
+  canvasEl.addEventListener("wheel", function (event) {
+    event.preventDefault();
+    zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+
+  canvasEl.addEventListener("dblclick", function (event) {
+    if (event.target.closest && event.target.closest(".node")) { return; }
+    fitView();
+  });
+
+  splitterEl.addEventListener("dblclick", function () {
+    asideEl.style.flex = "0 0 440px";
+  });
+
+  function canLink(drag, targetId) {
+    var source = state.nodes[drag.node];
+    var target = state.nodes[targetId];
+    if (!source || !target || source.id === target.id) { return false; }
+
+    // grey feeds only conditions, orange feeds only "иначе", blue feeds neither
+    if (drag.port === "cond" && target.type !== "when") { return false; }
+    if (drag.port !== "cond" && target.type === "when") { return false; }
+    if (drag.port === "elseout" && target.type !== "otherwise") { return false; }
+    if (drag.port !== "elseout" && target.type === "otherwise") { return false; }
+
+    if (isContainer(source.type) && childAllowed(source.type, target.type) &&
+        !reaches(target.id, source.id)) {
+      return true;
+    }
+    if (isContainer(target.type) && childAllowed(target.type, source.type) &&
+        !reaches(source.id, target.id)) {
+      return true;
+    }
+    var parent = target.parent ? state.nodes[target.parent] : null;
+    if (parent && childAllowed(parent.type, source.type) &&
+        subtreeIds(source).indexOf(target.id) < 0) {
+      return true;
+    }
+    var home = source.parent ? state.nodes[source.parent] : null;
+    if (!parent && home && childAllowed(home.type, target.type) &&
+        subtreeIds(target).indexOf(source.id) < 0) {
+      return true;
+    }
+    return false;
+  }
+
+  function markTargets(drag) {
+    Array.from(nodesEl.children).forEach(function (el) {
+      el.classList.remove("ok");
+      el.classList.remove("bad");
+      if (!drag) { return; }
+      if (el.dataset.id === drag.node) { return; }
+      el.classList.add(canLink(drag, el.dataset.id) ? "ok" : "bad");
+    });
+  }
+
+  function attach(parentNode, childNode) {
+    if (parentNode.id === childNode.id || reaches(childNode.id, parentNode.id)) {
+      setStatus(L("Так получится петля - нельзя.", "That would make a loop."), "error");
+      return;
+    }
+    snapshot();
+    parentNode.children = parentNode.children || [];
+    if (parentNode.children.indexOf(childNode.id) < 0) {
+      parentNode.children.push(childNode.id);
+    }
+    if (!childNode.parent) { childNode.parent = parentNode.id; }
+    render();
+    scheduleCompile();
+    var count = parentsOf(childNode.id).length;
+    setStatus(L("«", "") + labelOf(childNode.type) +
+              L("» теперь внутри «", "” is now inside “") + labelOf(parentNode.type) +
+              L("»", "”") +
+              (count > 1 ? L(" (входов: ", " (inputs: ") + count + ")" : "") + ".", "ok");
+  }
+
+  function link(drag, targetId) {
+    var source = state.nodes[drag.node];
+    var target = state.nodes[targetId];
+    log("link: " + (source && source.type) + " " + drag.port + " -> " + (target && target.type));
+    if (drag.port === "cond" && target && target.type !== "when") {
+      setStatus(L("Серый выход ведёт только к «Условие».", "The grey port leads only to a condition."), "error");
+      return;
+    }
+    if (drag.port !== "cond" && target && target.type === "when") {
+      setStatus(L("К «Условию» ведёт только серый выход - тяни от серой точки.", "Only the grey port leads to a condition - drag from the grey dot."), "error");
+      return;
+    }
+    if (drag.port === "elseout" && target && target.type !== "otherwise") {
+      setStatus(L("Оранжевый выход ведёт только к «Иначе».", "The orange port leads only to an else block."), "error");
+      return;
+    }
+    if (drag.port !== "elseout" && target && target.type === "otherwise") {
+      setStatus(L("К «Иначе» ведёт только оранжевый выход условия.", "Only the orange port of a condition leads to an else block."), "error");
+      return;
+    }
+    if (!source || !target || source.id === target.id) {
+      log("link: пустой источник или цель");
+      return;
+    }
+
+    // 1) container -> child: event, when, buttons or bot takes the target inside
+    if (isContainer(source.type) && childAllowed(source.type, target.type) &&
+        !reaches(target.id, source.id)) {
+      attach(source, target);
+      return;
+    }
+
+    // 2) the other direction is fine too: dropping an action onto an event nests it
+    if (isContainer(target.type) && childAllowed(target.type, source.type) &&
+        !reaches(source.id, target.id)) {
+      attach(target, source);
+      return;
+    }
+
+    // 3) same level: put the source right before the target
+    var parent = target.parent ? state.nodes[target.parent] : null;
+    if (parent && childAllowed(parent.type, source.type) &&
+        subtreeIds(source).indexOf(target.id) < 0) {
+      snapshot();
+      parent.children = parent.children.filter(function (id) { return id !== source.id; });
+      var position = parent.children.indexOf(target.id);
+      parent.children.splice(position, 0, source.id);
+      if (!source.parent) { source.parent = parent.id; }
+      render();
+      setStatus(L("«", "") + labelOf(source.type) +
+                L("» теперь перед «", "” is now before “") + labelOf(target.type) +
+                L("».", "”."), "ok");
+      return;
+    }
+
+    // 4) the target is still free: join it where the source already lives,
+    // right after the source, so a chain can be built before attaching it.
+    var home = source.parent ? state.nodes[source.parent] : null;
+    if (!parent && home && childAllowed(home.type, target.type) &&
+        subtreeIds(target).indexOf(source.id) < 0) {
+      snapshot();
+      home.children = home.children.filter(function (id) { return id !== target.id; });
+      var after = home.children.indexOf(source.id);
+      home.children.splice(after + 1, 0, target.id);
+      if (!target.parent) { target.parent = home.id; }
+      render();
+      setStatus(L("«", "") + labelOf(target.type) +
+                L("» идёт после «", "” comes after “") + labelOf(source.type) +
+                L("».", "”."), "ok");
+      return;
+    }
+
+    log("link: запрещено " + source.type + " -> " + target.type);
+    if (!parent && !home) {
+      setStatus(L("Сначала прикрепи один из блоков к «Событие», потом соединяй их между собой.", "First attach one of the blocks to an event, then link them to each other."), "error");
+      return;
+    }
+    setStatus(L("«", "") + labelOf(target.type) +
+              L("» нельзя вложить в «", "” cannot be nested in “") + labelOf(source.type) +
+              L("».", "”."), "error");
+  }
+
+  document.addEventListener("keydown", function (event) {
+    var typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !typing) {
+      event.preventDefault(); undo(); return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y" && !typing) {
+      event.preventDefault(); redo(); return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && !typing) {
+      event.preventDefault(); duplicate(state.nodes[state.selected]); return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { compile(); return; }
+    if (event.key === "f" && !typing) { fitView(); return; }
+    if (event.key === "Escape" && pending) {
+      pending = null;
+      markTargets(null);
+      setStatus(L("Связывание отменено.", "Linking cancelled."));
+      return;
+    }
+    if ((event.key === "Delete" || event.key === "Backspace") && !typing && state.selected) {
+      removeNode(state.nodes[state.selected]);
+    }
+  });
+
+  async function compile() {
+    if (!state.rootId || !state.nodes[state.rootId]) {
+      var foundBot = Object.keys(state.nodes).filter(function (id) {
+        return state.nodes[id] && state.nodes[id].type === "bot";
+      })[0];
+      if (foundBot) {
+        state.rootId = foundBot;
+      } else {
+        clearOutput("Пусто. Добавь блок «Бот» в меню слева.");
+        return;
+      }
+    }
+    // The board goes to the server as it is: one converter in Python instead of
+    // a second DSL writer here that can drift away from it.
+    try {
+      var response = await fetch("/api/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodes: currentBoard() })
+      });
+      var data = await response.json();
+      if (!data.ok) {
+        lastDsl = "";
+        lastCode = "";
+        dslPane.textContent = "";
+        codePane.textContent = "";
+        setStatus(data.detail || data.error || L("Не собралось.", "Compilation failed."), "error");
+        return;
+      }
+      lastDsl = data.text || "";
+      lastCode = data.code || "";
+      lastHasToken = !!data.has_token;
+      dslPane.textContent = lastDsl;
+      codePane.textContent = lastCode;
+      var unlinked = Object.keys(state.nodes).filter(function (id) {
+        return id !== state.rootId && !state.nodes[id].parent;
+      }).length;
+      var warnings = data.warnings || [];
+      var line = TgUi.fmt("status_ok_nodes", {
+        blocks: Object.keys(state.nodes).length,
+        lines: lastCode.split("\n").length
+      });
+      if (unlinked) { line += TgUi.fmt("status_unlinked", { count: unlinked }); }
+      if (warnings.length) { line += " · " + warnings.join("; "); }
+      setStatus(line, "ok");
+    } catch (error) {
+      setStatus(L("Нет связи с сервером tgblocks: ", "Cannot reach the tgblocks server: ") + error, "error");
+    }
+  }
+
+  var timer = null;
+
+  function scheduleSave() {
+    if (restoring) {
+      // Opening the view must not write anything: only real edits are saved.
+      return;
+    }
+    // Debouncing, revision bookkeeping and the flush on page close all live in
+    // the shared module, so this view saves exactly like the other two.
+    TgProject.saveBoard(currentBoard());
+  }
+
+  function currentBoard() {
+    return { nodes: state.nodes, counter: state.counter,
+             rootId: state.rootId, manual: state.manual };
+  }
+
+  function scheduleCompile() {
+    clearTimeout(timer);
+    timer = setTimeout(compile, 400);
+    scheduleSave();
+  }
+
+  function download(name, text, mime) {
+    var blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // ------------------------------------------------------------------ files
+  var fileName = document.getElementById("file-name");
+  var importInput = document.getElementById("import");
+
+  // The canvas is one picture of the shared text: the text is what all three
+  // views agree on, while the board itself is kept as a draft so unconnected
+  // blocks and hand-placed positions survive a reload.
+  async function renderText(text) {
+    if (!text.trim()) {
+      applyProject({ nodes: {}, counter: 0, rootId: null });
+      clearOutput("Пусто. Добавь блок «Бот» в меню слева.");
+      setStatus(L("Пустой бот: добавь блок «Бот» в меню слева.", "Empty bot: add a bot block from the palette on the left."));
+      return;
+    }
+    try {
+      var name = TgProject.currentName();
+      var response = await fetch("/api/to_nodes?name=" + encodeURIComponent(name), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: text, name: name })
+      });
+      var data = await response.json();
+      if (!data.ok) {
+        setStatus(data.detail || data.error || L("не удалось показать текст блоками", "cannot show the text as blocks"), "error");
+        return;
+      }
+      applyProject(data.nodes);
+      dslPane.textContent = text;
+      compile();
+    } catch (error) {
+      setStatus(L("Нет связи с сервером: ", "Cannot reach the server: ") + error, "error");
+    }
+  }
+
+  async function loadProject(name) {
+    try {
+      var data = await TgProject.load(name);
+      fileName.textContent = data.name;
+      var draft = data.draft;
+      var draftNodes = draft && draft.board ? Object.keys(draft.board.nodes || {}) : [];
+      if (draft && draft.rev === data.rev && draftNodes.length) {
+        // Exactly the canvas the user left, unconnected blocks included. An
+        // empty draft is ignored: it would hide a perfectly good bot text.
+        applyProject(draft.board);
+        dslPane.textContent = data.text;
+        compile();
+      } else {
+        await renderText(data.text);
+      }
+      setStatus(L("Файл: ", "File: ") + data.name);
+    } catch (error) {
+      setStatus(L("Не удалось открыть бота: ", "Could not open the bot: ") + error.message, "error");
+    }
+  }
+
+  TgProject.configure({
+    status: setStatus,
+    reload: async function (fresh) {
+      fileName.textContent = TgProject.currentName();
+      await renderText(fresh.text);
+    }
+  });
+
+  function isBlockMap(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) { return false; }
+    var keys = Object.keys(value);
+    if (!keys.length) { return true; }
+    return keys.every(function (key) {
+      var item = value[key];
+      return !!item && typeof item === "object" && typeof item.type === "string";
+    });
+  }
+
+  function readProject(stored) {
+    // Accepts every shape met in practice:
+    //   {nodes: blocks, counter, rootId}      - section
+    //   {nodes: section, text: "..."}         - whole bot file
+    //   {nodes: {nodes: section}}             - double wrapped file
+    //   {b1: {...}, e2: {...}}                - bare map of blocks
+    var section = stored && stored.nodes && typeof stored.nodes === "object"
+      ? stored.nodes
+      : stored;
+    var guard = 0;
+    while (guard < 5 && section && section.nodes &&
+           typeof section.nodes === "object" && !isBlockMap(section.nodes)) {
+      section = section.nodes;
+      guard += 1;
+    }
+    if (section && section.nodes && isBlockMap(section.nodes)) {
+      return { blocks: section.nodes, meta: section };
+    }
+    if (isBlockMap(section)) {
+      return { blocks: section, meta: {} };
+    }
+    return { blocks: {}, meta: {} };
+  }
+
+  function applyProject(stored) {
+    var project = readProject(stored);
+    state.nodes = project.blocks;
+    state.counter = project.meta.counter || 0;
+    state.rootId = project.meta.rootId || null;
+    if (!state.rootId || !state.nodes[state.rootId]) {
+      var botId = Object.keys(state.nodes).filter(function (id) {
+        return state.nodes[id] && state.nodes[id].type === "bot";
+      })[0];
+      state.rootId = botId || null;
+    }
+    if (!state.counter) {
+      state.counter = Object.keys(state.nodes).reduce(function (max, id) {
+        var number = parseInt(String(id).replace(/^[a-z]+/i, ""), 10);
+        return isNaN(number) ? max : Math.max(max, number);
+      }, 0);
+    }
+    state.selected = null;
+    state.manual = true;
+    restoring = true;
+    render();
+    restoring = false;
+    var visible = state.rootId && state.nodes[state.rootId]
+      ? state.nodes[state.rootId]
+      : Object.keys(state.nodes).map(function (id) { return state.nodes[id]; })[0];
+    if (visible && visible.x != null) {
+      state.view.scale = 1;
+      state.view.tx = 40 - visible.x;
+      state.view.ty = 40 - visible.y;
+      applyView();
+      drawWires();
+    }
+  }
+
+  async function openBoard() {
+    // A real Explorer dialog: pick a bot file and swap the board to it.
+    importInput.value = "";
+    importInput.click();
+  }
+
+  importInput.addEventListener("change", function () {
+    var file = importInput.files[0];
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var name = file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]/g, "") || "bot1";
+      var raw = String(reader.result || "").replace(/^\uFEFF/, "");
+      var stored = null;
+      try {
+        var parsed = JSON.parse(raw);
+        stored = parsed && parsed.nodes ? parsed.nodes : parsed;
+      } catch (error) {
+        setStatus(L("Это не файл блоков. Python-код открывается в «Вид: текст».", "That is not a block file. Python code opens in the text view."), "error");
+        return;
+      }
+      TgProject.setName(name);
+      fileName.textContent = name;
+      applyProject(stored);
+      TgProject.saveBoard(currentBoard());
+      TgProject.flush();
+      setStatus(L("Открыт файл: ", "Opened file: ") + file.name, "ok");
+    };
+    reader.readAsText(file);
+    importInput.value = "";
+  });
+
+  // ------------------------------------------------------------------- boot
+  document.getElementById("palette").addEventListener("click", function (event) {
+    var item = event.target.closest("[data-add]");
+    if (item) { addNode(item.dataset.add); }
+  });
+
+  var logPane = document.getElementById("pane-log");
+  var logSince = 0;
+  var logTimer = null;
+
+  async function pollLogs() {
+    try {
+      var response = await fetch("/api/logs?since=" + logSince);
+      var data = await response.json();
+      if (data.lines.length) {
+        logPane.textContent += data.lines.join("\n") + "\n";
+        logPane.scrollTop = logPane.scrollHeight;
+      }
+      logSince = data.total;
+      document.getElementById("btn-stop").disabled = !data.running;
+    } catch (error) {
+      /* server is gone: stop quietly */
+    }
+  }
+
+  async function runBot() {
+    if (!lastCode) { setStatus(L("Сначала собери код.", "Compile first."), "error"); return; }
+    // The token usually sits in the bot block already: asking for it again on
+    // every start was the most common complaint about this button.
+    var token = "";
+    if (!lastHasToken) {
+      var entered = window.prompt(
+        "У бота нет токена. Впиши его (Enter - взять из TG_BOT_TOKEN):", "");
+      if (entered === null) { return; }
+      token = entered;
+    }
+    try {
+      var response = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: lastCode, token: token })
+      });
+      var data = await response.json();
+      if (!data.ok) { setStatus(data.error || L("не запустилось", "did not start"), "error"); return; }
+      logSince = 0;
+      logPane.textContent = "";
+      document.querySelector('[data-pane="logs"]').click();
+      setStatus(L("Запущен (pid ", "Running (pid ") + data.pid + L("). Логи на вкладке «Логи».", "). See the Logs tab."), "ok");
+      if (!logTimer) { logTimer = setInterval(pollLogs, 1000); }
+      pollLogs();
+    } catch (error) {
+      setStatus(L("Нет связи с сервером: ", "Cannot reach the server: ") + error, "error");
+    }
+  }
+
+  async function stopBot() {
+    await fetch("/api/stop", { method: "POST" });
+    setStatus(L("Остановлен.", "Stopped."), "ok");
+    pollLogs();
+  }
+
+  document.getElementById("btn-clear").addEventListener("click", function () {
+    if (!Object.keys(state.nodes).length) { return; }
+    if (!window.confirm(L("Удалить все блоки?", "Delete every block?"))) { return; }
+    snapshot();
+    state.nodes = {};
+    state.counter = 0;
+    state.rootId = null;
+    state.selected = null;
+    pending = null;
+    render();
+    // Clearing is an edit of the shared document: save it, so the other two
+    // views do not keep showing the bot that was just deleted here.
+    scheduleCompile();
+    setStatus(L("Всё удалено. Добавь блоки из меню слева.", "Everything deleted. Add blocks from the palette on the left."), "ok");
+  });
+
+  document.getElementById("btn-open").addEventListener("click", openBoard);
+  (async function bootFiles() {
+    await loadSchema();
+    await loadProject(TgProject.currentName());
+  })();
+
+  document.getElementById("btn-run").addEventListener("click", runBot);
+  document.getElementById("btn-stop").addEventListener("click", stopBot);
+  document.getElementById("btn-stop").disabled = true;
+  document.getElementById("btn-py").addEventListener("click", function () {
+    download("bot.py", lastCode, "text/x-python;charset=utf-8");
+  });
+  document.getElementById("btn-copy").addEventListener("click", function () {
+    var text = codePane.classList.contains("hidden") ? dslPane.textContent : lastCode;
+    navigator.clipboard.writeText(text).then(function () {
+      setStatus(L("Скопировано.", "Copied."), "ok");
+    }, function () {
+      setStatus(L("Браузер не дал доступ к буферу.", "The browser refused clipboard access."), "error");
+    });
+  });
+  document.querySelectorAll(".tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      document.querySelectorAll(".tab").forEach(function (other) {
+        other.classList.toggle("active", other === tab);
+      });
+      var pane = tab.dataset.pane;
+      dslPane.classList.toggle("hidden", pane !== "text");
+      codePane.classList.toggle("hidden", pane !== "code");
+      logPane.classList.toggle("hidden", pane !== "logs");
+    });
+  });
+  window.addEventListener("resize", function () {
+    if (!state.rootId) { return; }
+    layout();
+    drawWires();
+  });
+
+  applyView();
+  render();
+
+  // Switching the interface language re-labels the palette and every block.
+  window.TgUiOnChange = function () {
+    if (!SCHEMA.actions.length) { return; }
+    SCHEMA.actions.forEach(function (item) {
+      LABEL[nodeTypeOf(item.kind)] = TgUi.tr(item);
+    });
+    buildPalette();
+    render();
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[runtime,dev]"
+      - name: Unit and behaviour tests
+        run: python -m pytest -q
+      - name: The single-file generator is fresh
+        run: python tools/build_scaffold.py --check
+      - name: Editor JavaScript parses and its helpers exist
+        run: python tools/check_javascript.py
+      - name: Markdown that GitHub and PyPI render
+        run: python tools/check_markdown.py
+      - name: End-to-end smoke (endpoints and editor hand-offs)
+        run: python tools/qa_smoke.py
+
+  package:
+    name: build and install the package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip build twine
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: The wheel carries the editors and Blockly
+        run: |
+          python - <<'PY'
+          import zipfile, glob, sys
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          needed = [
+              "tgblocks/visual/static/nodes.html",
+              "tgblocks/visual/static/blocks.html",
+              "tgblocks/visual/static/text.html",
+              "tgblocks/visual/static/tgblocks-ui.js",
+              "tgblocks/visual/static/vendor/blockly.js",
+          ]
+          missing = [name for name in needed if name not in names]
+          print(wheel, len(names), "files")
+          if missing:
+              print("missing:", missing)
+              sys.exit(1)
+          PY
+      - name: Package metadata is valid
+        run: python -m twine check dist/*
+      - name: Install the wheel into a clean environment and run it
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/python -m pip install --quiet dist/*.whl
+          /tmp/clean/bin/tgblocks --version
+          /tmp/clean/bin/tgblocks check examples/full.tg
+          /tmp/clean/bin/tgblocks compile examples/hello.tg -o /tmp/hello.py
+          /tmp/clean/bin/python -c "import ast, pathlib; ast.parse(pathlib.Path('/tmp/hello.py').read_text()); print('generated code parses')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

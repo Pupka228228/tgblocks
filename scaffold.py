@@ -101,6 +101,18 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev,runtime]"
 ```
 
+### Run without installing globally (pipx)
+
+If you don't want to install `tgblocks` into your main Python environment, use `pipx` but first, install the dependencies:
+```bash
+python -m pip install --user pipx
+python -m pipx ensurepath
+```
+Then restart the command prompt and enter:
+```bash
+pipx run --spec "tgblocks[runtime]" tgblocks
+```
+
 ## Three views, one compiler
 
 ### `/nodes` - boxes and wires
@@ -376,6 +388,12 @@ python tools/qa_smoke.py                 # endpoints plus the editor-to-editor h
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+## Support the project
+
+If you find `tgblocks` useful, you can buy me a coffee to support further development. This is a voluntary donation, not a payment for software.
+
+[![DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-blue?style=flat)](https://www.donationalerts.com/r/Coder_x)
 
 ## Русский
 

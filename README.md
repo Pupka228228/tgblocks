@@ -35,6 +35,14 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev,runtime]"
 ```
 
+### Run without installing globally (pipx)
+
+If you don't want to install `tgblocks` into your main Python environment, use `pipx`:
+
+```bash
+pipx run --spec "tgblocks[runtime]" tgblocks
+```
+
 ## Three views, one compiler
 
 ### `/nodes` - boxes and wires

@@ -1271,7 +1271,7 @@ tgblocks\
 ├── scaffold.py              генератор проекта (одним файлом)
 ├── pyproject.toml           имя пакета, версия, зависимости, console script
 ├── README.md                документация (английский + русский блок)
-├── ИНСТРУКЦИЯ.md            этот файл
+├── INSTRUCTIONS.md            этот файл
 ├── examples\hello.tg        короткий пример
 ├── examples\full.tg         бот, который использует всё сразу
 ├── examples\features.txt    тот же набор в текстовом синтаксисе

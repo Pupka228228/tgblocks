@@ -267,7 +267,7 @@ Webhook mode is a directive, not a rewrite: `bot webhook "https://example.com/ho
 makes the generated bot serve the update endpoint instead of polling, and it still
 falls back to polling when `TG_WEBHOOK_URL` is empty.
 
-Full step-by-step reference in Russian: **[ИНСТРУКЦИЯ.md](ИНСТРУКЦИЯ.md)**.
+Full step-by-step reference in Russian: **[ИНСТРУКЦИЯ.md](INSTRUCTIONS.md)**.
 A bot that uses everything: **[examples/full.tg](examples/full.tg)**.
 
 ## Errors with line numbers
